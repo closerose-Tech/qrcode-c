@@ -10,15 +10,16 @@
 https://github.com/closerose-Tech/qrcode-c
 ```
 
-| 用途 | 说明 |
+| 用途 | 地址 / 方式 |
 | --- | --- |
-| 在线使用 | `https://closerose-tech.github.io/qrcode-c/`（Pages 首次部署后生效） |
-| 安装包 | Actions → **Android APK** → 最新一次构建 → Artifacts 下载 `qr-quality-verifier-apk` |
-| 本地提交 | `git push`（凭据已由 Git Credential Manager 保存） |
+| 网页版（手机可直接用） | https://closerose-tech.github.io/qrcode-c/ |
+| 安卓安装包（直链） | [qr-quality-verifier-1.0.0.apk](https://github.com/closerose-Tech/qrcode-c/releases/download/v1.0.0/qr-quality-verifier-1.0.0.apk) |
+| 每次构建的临时产物 | Actions → **Android APK** → 对应运行 → Artifacts |
+| 本地提交 | `git push`（凭据由 Git Credential Manager 保存） |
 
-两条流水线在 `.github/workflows/` 下：`android.yml` 用 JDK 17 + SDK 34 + Gradle 8.7 构建 Debug APK 并上传产物；`pages.yml` 把 `app/` 目录直接发布为静态站点。
+两条流水线在 `.github/workflows/`：`android.yml` 用 runner 预装 SDK + JDK 17 + Gradle 8.7 构建 Debug APK 并上传产物；`pages.yml` 把 `app/` 发布为静态站点（Pages 源已设为 GitHub Actions）。
 
-> Pages 需在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**，推送后才会出站点地址。
+网页版首次打开后可「添加到主屏幕」按 PWA 全屏运行，首屏加载完即完全离线可用。
 
 ## 目录
 
@@ -85,6 +86,7 @@ DPM 模式（29158）改以反射率分布统计阈值计算**单元对比度 CC
 ## 当前版本边界
 
 - 完整分级针对 QR Code（Model 2）；Micro QR、Data Matrix（16022）、一维条码（15416）的专用解码与分级尚未开放，已在应用内「标准说明」中注明。
+- 流水线产出的是 **debug 签名** APK，适合内部试用；对外分发前请在仓库 Secrets 配 release keystore 并改用 `assembleRelease`。
 - 拍照由系统相机完成，曝光/白平衡不受控；对高反光金属、曲面等场景建议改用 29158 模式评估趋势。
 
 ## 验证
