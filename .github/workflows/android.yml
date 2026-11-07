@@ -1,0 +1,62 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'app/**'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'app/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 配置 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装编译所需 SDK 组件
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+      - name: 配置 Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: 构建 Debug APK
+        working-directory: android
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: 归档 APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "out/qr-quality-verifier-${GITHUB_SHA::7}.apk"
+          ls -lh out
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: qr-quality-verifier-apk
+          path: out/*.apk
+          retention-days: 30

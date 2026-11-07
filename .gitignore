@@ -1,0 +1,31 @@
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+
+# 工具产物
+node_modules/
+tools/out/
+tools/shots/
+*.log
+
+# Android 构建
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/web/
+*.apk
+*.aab
+*.keystore
+!android/app/debug.keystore
+.jdks/
+
+# 本地数据文件（不属于本仓库，避免业务数据外泄）
+*.xlsx
+
+# 本地环境
+.workbuddy/

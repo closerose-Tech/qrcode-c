@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.cnzy.qrverify'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.cnzy.qrverify"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+/* 把 ../app 下的网页资源同步进 assets/web，保证单一源文件，避免手工复制 */
+def webSource = file("$rootDir/../app")
+tasks.register('syncWebAssets', Copy) {
+    onlyIf { webSource.exists() }
+    from webSource
+    into "$projectDir/src/main/assets/web"
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'preBuild' || task.name.startsWith('merge') && task.name.endsWith('Assets')) {
+        task.dependsOn 'syncWebAssets'
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}
