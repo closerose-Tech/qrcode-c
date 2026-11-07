@@ -59,6 +59,28 @@ python -m http.server 8899
 
 **演示参数**：`?demo=1`（自动载入示例）、`?demo=2`（模糊+低对比示例）、`&std=29158`（DPM 模式）、`&view=heat`（热图）。
 
+## 发布版本
+
+正式包由 `Release APK` 流水线产出（`.github/workflows/release.yml`），产物是**正式签名的 release APK**，同时创建 GitHub Release：
+
+```bash
+# 方式一：网页 Actions → Release APK → Run workflow，填版本号（如 1.0.1）
+# 方式二：打 tag 自动触发
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+版本号写入 `versionName`，`versionCode` 按 `主*10000+次*100+修订` 自动换算；`app/index.html` 里的 `app-version` 会在构建时同步，界面底部显示的就是包内版本。
+
+**签名密钥（重要）**：首次运行若仓库未配置 Secrets，流水线会临时生成密钥并把 `release-keystore` 作为产物上传。请下载后配置以下 Secrets，否则下一个版本签名不同，用户必须先卸载才能安装：
+
+| Secret | 内容 |
+| --- | --- |
+| `KEYSTORE_BASE64` | `base64 -w0 release.keystore` 的输出 |
+| `KEYSTORE_PASSWORD` | keystore 口令 |
+| `KEY_ALIAS` | 别名（默认 `qrverify`） |
+
+本地构建只需把 `android/keystore.properties.example` 复制为 `android/keystore.properties` 并填好路径与口令，`gradle assembleRelease` 即用该密钥签名（该文件与 `*.jks` 不入库）。
+
 ## 测评了什么
 
 | 参数 | 说明 | 计算方式 |
