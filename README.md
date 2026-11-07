@@ -7,14 +7,14 @@
 ## 仓库与在线版本
 
 ```
-https://github.com/closerose-Tech/qrcode-check
+https://github.com/closerose-Tech/qrcode-c
 ```
 
 | 用途 | 说明 |
 | --- | --- |
-| 在线使用 | `https://closerose-tech.github.io/qrcode-check/`（Pages 首次部署后生效） |
+| 在线使用 | `https://closerose-tech.github.io/qrcode-c/`（Pages 首次部署后生效） |
 | 安装包 | Actions → **Android APK** → 最新一次构建 → Artifacts 下载 `qr-quality-verifier-apk` |
-| 本地提交 | `git push -u origin main`（首次推送需 GitHub 账号授权或 Personal Access Token） |
+| 本地提交 | `git push`（凭据已由 Git Credential Manager 保存） |
 
 两条流水线在 `.github/workflows/` 下：`android.yml` 用 JDK 17 + SDK 34 + Gradle 8.7 构建 Debug APK 并上传产物；`pages.yml` 把 `app/` 目录直接发布为静态站点。
 

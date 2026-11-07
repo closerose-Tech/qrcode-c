@@ -29,6 +29,9 @@ jobs:
 
       - name: 配置 Pages
         uses: actions/configure-pages@v5
+        with:
+          # 首次运行时自动把仓库 Pages 源切到 GitHub Actions，免手工设置
+          enablement: true
 
       - name: 打包网页应用
         uses: actions/upload-pages-artifact@v3
