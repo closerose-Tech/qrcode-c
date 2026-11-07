@@ -613,6 +613,9 @@
 
   /* ------------------------------ 初始化 ------------------------------ */
   function init() {
+    var vMeta = document.querySelector('meta[name="app-version"]');
+    if (vMeta && $('#appVer')) $('#appVer').textContent = 'v' + vMeta.getAttribute('content');
+
     $('#fileCamera').addEventListener('change', function (e) {
       if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
       e.target.value = '';

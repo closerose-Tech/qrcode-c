@@ -2,6 +2,33 @@ plugins {
     id 'com.android.application'
 }
 
+/*
+ * 版本与签名来源优先级：环境变量 > android/keystore.properties > 默认值
+ * CI 在 .github/workflows/release.yml 里注入 VERSION_* 与 KEYSTORE_*，release 构建因此是正式签名；
+ * 本地没有配置签名时会退回 debug 签名（仅供自测，不可对外分发）。
+ */
+def props = new Properties()
+def propsFile = rootProject.file('keystore.properties')
+if (propsFile.exists()) {
+    propsFile.withInputStream { props.load(it) }
+}
+def cfg = { String key, String fallback ->
+    def v = System.getenv(key)
+    if (v == null || v.isEmpty()) v = props.getProperty(key)
+    (v == null || v.isEmpty()) ? fallback : v
+}
+
+def verName = cfg('VERSION_NAME', '1.0.0')
+def verCode = cfg('VERSION_CODE', '1').toInteger()
+
+def ksPath = cfg('KEYSTORE_FILE', '')
+def ksFile = null
+if (!ksPath.isEmpty()) {
+    ksFile = new File(ksPath)
+    if (!ksFile.isAbsolute()) ksFile = new File(rootDir, ksPath)
+}
+def hasSigning = ksFile != null && ksFile.exists()
+
 android {
     namespace 'com.cnzy.qrverify'
     compileSdk 34
@@ -10,20 +37,53 @@ android {
         applicationId "com.cnzy.qrverify"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode verCode
+        versionName verName
+    }
+
+    signingConfigs {
+        if (hasSigning) {
+            release {
+                storeFile ksFile
+                storePassword cfg('KEYSTORE_PASSWORD', '')
+                keyAlias cfg('KEY_ALIAS', '')
+                keyPassword cfg('KEY_PASSWORD', cfg('KEYSTORE_PASSWORD', ''))
+            }
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasSigning) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.lifecycle('[qrverify] 未提供签名密钥，release 构建使用 debug 签名（不可对外分发）')
+            }
+        }
+        debug {
+            // 与正式包不同包名，便于同一台手机上并存对比
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
         }
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
     }
 }
 

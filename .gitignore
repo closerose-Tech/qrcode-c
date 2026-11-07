@@ -24,6 +24,12 @@ android/app/src/main/assets/web/
 !android/app/debug.keystore
 .jdks/
 
+# 签名与发布产物
+android/keystore.properties
+android/keystore/
+*.jks
+dist/
+
 # 本地数据文件（不属于本仓库，避免业务数据外泄）
 *.xlsx
 
