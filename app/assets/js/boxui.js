@@ -1,6 +1,6 @@
 /*!
  * 二维码测评 · 盒条二维码合规测评交互层
- * 拍摄/导入 → 四角与尺寸基准校准 → 符号分级与合规量测 → 码属品规 / 指标清单 / 结论
+ * 拍摄/导入 → 四角校准 → 符号分级与合规判定 → 码属品规 / 指标清单 / 结论
  */
 (function () {
   'use strict';
@@ -15,9 +15,7 @@
     rgba: null,
     gray: null,
     quad: null,
-    ref: null,          // {p1, p2, mm}
-    dragging: -1,       // 0-3 四角, 4/5 基准线端点
-    pack: 'box-std',
+    dragging: -1,       // 0-3 四角
     result: null
   };
 
@@ -96,8 +94,6 @@
       toast('未能自动定位二维码，请拖动四角贴合');
     }
 
-    if (!state.ref) state.ref = defaultRef(canvas);
-
     $('#boxCalibPanel').hidden = false;
     $('#boxResult').hidden = true;
     $('#boxEmpty').hidden = true;
@@ -138,13 +134,6 @@
     var w = Math.min(c.width, c.height) * 0.46;
     var x = (c.width - w) / 2, y = (c.height - w) / 2;
     return [{ x: x, y: y }, { x: x + w, y: y }, { x: x + w, y: y + w }, { x: x, y: y + w }];
-  }
-
-  function defaultRef(c) {
-    var y = Math.max(12, c.height * 0.08);
-    var len = c.width * 0.28;
-    var x = (c.width - len) / 2;
-    return { p1: { x: x, y: y }, p2: { x: x + len, y: y }, mm: null };
   }
 
   /* jsQR 定位点的顺序可能与图像方向不一致；统一为 TL,TR,BR,BL */
@@ -217,61 +206,23 @@
       ctx.fill();
     });
     ctx.restore();
-
-    if (state.ref) {
-      var a = state.ref.p1, b = state.ref.p2;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(198,72,32,.95)';
-      ctx.lineWidth = 1.6;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.moveTo(a.x * scale, a.y * scale);
-      ctx.lineTo(b.x * scale, b.y * scale);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      [a, b].forEach(function (p, i) {
-        var on = (4 + i) === act;
-        ctx.beginPath();
-        ctx.arc(p.x * scale, p.y * scale, on ? 10 : 7.5, 0, Math.PI * 2);
-        ctx.fillStyle = on ? 'rgba(255,240,232,.98)' : 'rgba(255,255,255,.94)';
-        ctx.fill();
-        ctx.strokeStyle = '#c64820';
-        ctx.lineWidth = on ? 2.4 : 1.8;
-        ctx.stroke();
-      });
-      var mx = (a.x + b.x) / 2 * scale, my = (a.y + b.y) / 2 * scale;
-      var label = state.ref.mm ? (state.ref.mm + ' mm') : '基准线';
-      ctx.font = '600 11px "PingFang SC","Microsoft YaHei",sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(18,22,26,.72)';
-      var tw = ctx.measureText(label).width + 10;
-      ctx.fillRect(mx - tw / 2, my - 20, tw, 15);
-      ctx.fillStyle = '#fff';
-      ctx.fillText(label, mx, my - 9);
-      ctx.restore();
-    }
   }
 
   function bindCalib() {
     var cv = $('#boxCanvas');
     if (!cv) return;
 
-    // 四角（源图像素坐标）与基准线端点共用一套手柄拖动：
-    // 命中判定在显示空间、位移换算回源空间，详见 core/handles.js
+    // 四角（源图像素坐标）拖动：命中判定在显示空间、位移换算回源空间，详见 core/handles.js
     QRQ.Handles.bind(cv, {
       size: function () {
         return { w: state.src ? state.src.width : cv.width, h: state.src ? state.src.height : cv.height };
       },
       points: function () {
-        var out = (state.quad || []).slice();
-        if (state.ref) out.push(state.ref.p1, state.ref.p2);
-        return out;
+        return (state.quad || []).slice();
       },
       polyPoints: function () { return state.quad || []; },
       setPoint: function (i, p) {
-        if (i < 4) { if (state.quad) state.quad[i] = p; return; }
-        if (!state.ref) return;
-        if (i === 4) state.ref.p1 = p; else state.ref.p2 = p;
+        if (i < 4 && state.quad) state.quad[i] = p;
       },
       onDrag: function () { drawCalib(); }
     });
@@ -283,15 +234,8 @@
       li.classList.toggle('done', idx < i);
       li.classList.toggle('active', idx === i);
     });
-    var txt = ['定位二维码四角…', '计算符号质量分级…', '换算尺寸与套印…', '核验 59 位编码…', '比对技术要求…'][i];
+    var txt = ['定位二维码四角…', '计算符号质量分级…', '核验 59 位编码…', '核对盒 / 条归属…', '比对技术要求…'][i];
     if (txt) $('#boxProgressSub').textContent = txt;
-  }
-
-  function refMmPerPx() {
-    if (!state.ref || !state.ref.mm) return null;
-    var d = Math.hypot(state.ref.p2.x - state.ref.p1.x, state.ref.p2.y - state.ref.p1.y);
-    if (d < 6) return null;
-    return d / state.ref.mm;   // px per mm
   }
 
   async function analyze() {
@@ -322,13 +266,10 @@
 
     await wait(80); step(2);
 
-    var ppm = refMmPerPx();
     var r;
     try {
       r = QRQ.Box.analyze(state.gray, state.src.width, state.src.height, {
         quad: orderQuad(state.quad),
-        ppm: ppm,
-        pack: state.pack,
         grade: r0
       }, { IMG: QRQ, pinggui: QRQ.Pinggui });
     } catch (e) {
@@ -361,12 +302,13 @@
     host.hidden = false;
     var st = r.status;
     var hit = r.hit;
+    var kind = r.kind;                       // 第 29 位判定：盒码 / 条码
+    var kindText = kind ? kind.text : (hit && hit.typeText ? hit.typeText : '无法判定');
 
     var chips = [
-      ['码属', hit ? hit.typeText : '未匹配'],
+      ['码属', kindText],
       ['品规', hit && hit.name ? hit.name : '—'],
       ['版本', r.qr.ok ? 'V' + r.qr.version + ' · ' + (r.qr.ecl || '?') : '未识读'],
-      ['边长', r.geo && r.geo.sideMm ? fmt(r.geo.sideMm, 1) + ' mm' : '待标定'],
       ['用时', Math.round(elapsed) + ' ms']
     ];
 
@@ -400,53 +342,40 @@
     /* 码属与品规：置于指标清单与结论之前 */
     html += '<div class="panel spec-card ' + (hit ? 'hit' : 'miss') + '">' +
       '<div class="preview-head">' +
-        '<div><div class="section-label">Package Type &amp; Specification</div>' +
+        '<div><div class="section-label">Code &amp; Specification</div>' +
         '<div class="section-title">码属与品规</div></div>' +
         '<span class="rh-chip" style="height:22px;font-size:10px">' +
           (r.pinggui ? (r.pinggui.source === 'imported' ? '品规库 ' + r.pinggui.total + ' 条' : '演示库 ' + r.pinggui.total + ' 条') : '未载入') +
         '</span>' +
       '</div>' +
       '<div class="spec-main">' +
-        '<span class="spec-type ' + (hit ? (hit.type === 'box' ? 'box' : (hit.type === 'bar' ? 'bar' : 'spec')) : 'none') + '">' +
-          esc(hit ? hit.typeText : '未匹配') + '</span>' +
+        '<span class="spec-type ' + (kind ? (kind.type === 'box' ? 'box' : 'bar') : (hit && hit.type ? (hit.type === 'box' ? 'box' : 'bar') : 'none')) + '">' +
+          esc(kindText) + '</span>' +
         '<span class="spec-name">' + esc(hit && hit.name ? hit.name : '未在品规对应表中找到该码') + '</span>' +
       '</div>' +
       '<div class="seg-table">' +
-        '<div class="seg-row"><span class="seg-name">' + esc(hit ? hit.typeText : '盒码 / 条码') + '</span>' +
-          '<span class="seg-val mono">' + esc(hit && hit.code ? hit.code : '—') + '</span></div>' +
-        '<div class="seg-row"><span class="seg-name">' + esc(hit ? hit.pairedTypeText : '配对码') + '</span>' +
-          '<span class="seg-val mono">' + esc(hit && hit.paired ? hit.paired : '—') + '</span></div>' +
+        '<div class="seg-row"><span class="seg-name">盒码（13 位）</span>' +
+          '<span class="seg-val mono">' + esc(hit && hit.box ? hit.box : '—') + '</span></div>' +
+        '<div class="seg-row"><span class="seg-name">条码（12 位）</span>' +
+          '<span class="seg-val mono">' + esc(hit && hit.bar ? hit.bar : '—') + '</span></div>' +
         '<div class="seg-row"><span class="seg-name">规格代码（13 位）</span>' +
           '<span class="seg-val mono">' + esc(hit && hit.spec ? hit.spec : '—') + '</span></div>' +
-        '<div class="seg-row"><span class="seg-name">二维码第 31–35 位</span>' +
-          '<span class="seg-val mono">' + esc(hit && (hit.payloadKey || hit.key5) ? (hit.payloadKey || hit.key5) : '—') + '</span></div>' +
-        '<div class="seg-row"><span class="seg-name">包装类型</span>' +
-          '<span class="seg-val">' + esc(r.pack.label) + '</span></div>' +
       '</div>' +
       (hit
-        ? (hit.via === 'spec5'
-          ? '<div class="note-line">按二维码数据第 31–35 位（' + esc(hit.key5) + '）匹配到 13 位规格代码第 8–12 位，对应品规：' + esc(hit.name || '—') +
-            (hit.candidates > 1 ? '（同键 ' + hit.candidates + ' 条，取首条）' : '') + '。</div>'
-          : '')
-        : '<div class="note-line">在下方「品规对应表」导入正式表格后，可直接判定盒码 / 条码并显示品规名称；也可用盒码或规格代码后 5 位手动查询。</div>') +
+        ? ''
+        : '<div class="note-line">在下方「品规对应表」导入正式表格后，可显示对应的盒码、条码与规格代码；也可手动输入盒码、条码或规格后 5 位查询。</div>') +
     '</div>';
 
     /* 叠加预览 */
     html += '<div class="panel">' +
       '<div class="preview-head">' +
         '<div><div class="section-label">Measured Overlay</div><div class="section-title">实测标记</div></div>' +
-        '<span class="rh-chip" style="height:22px;font-size:10px">' + (r.calibrated ? '已标定 ' + fmt(r.ppm, 1) + ' px/mm' : '未标定') + '</span>' +
+        '<span class="rh-chip" style="height:22px;font-size:10px">' + (kindText) + '</span>' +
       '</div>' +
       '<div class="calib-wrap"><canvas id="boxOverlay"></canvas></div>' +
       '<div class="ov-legend">' +
         '<span><i class="ln-quad"></i>二维码四角</span>' +
-        '<span><i class="ln-std"></i>底框（下沿空白）</span>' +
-        '<span><i class="ln-ref"></i>尺寸基准</span>' +
       '</div>' +
-      (r.geo && r.geo.frame && r.calibrated
-        ? '<div class="note-line">底框 ' + fmt(r.geo.frame.bottom, 2) + ' mm · 位置偏差 ' +
-          fmt(maxOffset(r), 2) + ' mm · 基准 ' + fmt(r.ppm, 1) + ' px/mm</div>'
-        : '') +
       (r.notes.length ? '<div class="note-line">' + r.notes.map(esc).join('；') + '</div>' : '') +
     '</div>';
 
@@ -518,25 +447,12 @@
       '<ul class="verdict-list">' + r.verdict.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' +
       '<div class="sub-h">整改建议</div>' +
       '<ul class="verdict-list advice">' + r.verdict.advice.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' +
-      '<div class="note-line">' + esc(r.pack.label) + ' · ' +
-        (r.calibrated ? '尺寸基准 ' + fmt(r.ppm, 1) + ' px/mm' : '未标定尺寸') +
-        (r.geo && r.geo.frame ? ' · 下白区 ' + fmt(r.geo.frame.bottom, 2) + ' mm' : '') +
-      '</div>' +
     '</div>';
 
     host.innerHTML = html;
     drawOverlay(r);
     bindResult();
     host.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function maxOffset(r) {
-    var fr = r.geo && r.geo.frame;
-    if (!fr || !r.ppm) return null;
-    var h = (fr.leftEdge || fr.rightEdge) ? null : Math.abs(fr.left - fr.right) / 2;
-    var v = (fr.topEdge || fr.bottomEdge) ? null : Math.abs(fr.top - fr.bottom) / 2;
-    if (h === null && v === null) return null;
-    return Math.max(h || 0, v || 0);
   }
 
   function drawOverlay(r) {
@@ -566,45 +482,6 @@
       ctx.restore();
     }
 
-    // 底框：只在符号下沿标注一段，避免四条线交叉干扰判读
-    var fr = r.geo && r.geo.frame;
-    if (fr && q && r.ppm && fr.bottom) {
-      var b0 = q[2], b1 = q[3];             // 底边 BR → BL
-      var mx = (b0.x + b1.x) / 2, my = (b0.y + b1.y) / 2;
-      var ux = (b1.x - b0.x) || 1, uy = (b1.y - b0.y) || 0;
-      var ul = Math.hypot(ux, uy) || 1;
-      var nx = uy / ul, ny = -ux / ul;      // 指向符号外侧（y 轴向下，底边外法线为 +y）
-      if (ny < 0) { nx = -nx; ny = -ny; }
-      var lenPx = fr.bottom * r.ppm;
-      var ex = mx + nx * lenPx, ey = my + ny * lenPx;
-
-      ctx.save();
-      ctx.strokeStyle = 'rgba(120,168,92,.95)';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(mx * k, my * k);
-      ctx.lineTo(ex * k, ey * k);
-      ctx.stroke();
-      // 端点横杠
-      var hx = -ny * 7, hy = nx * 7;
-      ctx.beginPath();
-      ctx.moveTo(ex * k - hx, ey * k - hy);
-      ctx.lineTo(ex * k + hx, ey * k + hy);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    if (state.ref) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(198,72,32,.95)';
-      ctx.setLineDash([6, 4]);
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(state.ref.p1.x * k, state.ref.p1.y * k);
-      ctx.lineTo(state.ref.p2.x * k, state.ref.p2.y * k);
-      ctx.stroke();
-      ctx.restore();
-    }
   }
 
   function bindResult() {
@@ -624,8 +501,14 @@
   function copyReport() {
     var r = state.result;
     if (!r) return;
-    var lines = ['盒条二维码合规测评报告', '标准：GB/T 33993-2017', '包装类型：' + r.pack.label];
-    if (r.hit) lines.push('码属：' + r.hit.typeText + ' ' + r.hit.code + (r.hit.name ? '，品规 ' + r.hit.name : ''));
+    var lines = ['盒条二维码合规测评报告', '标准：GB/T 33993-2017',
+      '码属：' + (r.kind ? r.kind.text : '无法判定') + (r.kind ? '（二维码数据第 29 位 = ' + r.kind.code + '）' : '')];
+    if (r.hit) {
+      lines.push('品规：' + r.hit.name +
+        (r.hit.box ? '，盒码 ' + r.hit.box : '') +
+        (r.hit.bar ? '，条码 ' + r.hit.bar : '') +
+        (r.hit.spec ? '，规格代码 ' + r.hit.spec : ''));
+    }
     lines.push('结论：' + badgeLabel(r.status) +
       '（符合 ' + r.counts.ok + ' / 临界 ' + r.counts.warn + ' / 超差 ' + r.counts.fail + '）');
     r.groups.forEach(function (g) {
@@ -703,8 +586,8 @@
     if (typeof mk !== 'function') return null;
 
     // 59 位：地址 15 + '/' + 前缀 9 + '/' + 实体分类 2 + 属性码 13 + 流水码 18
-    // 版本 3 / M 级的数据容量为 44 字节，59 位只能走字母数字模式（容量 61 字符）
-    var payload = 'YZWM.TOBACCO.CN' + '/' + '690102801' + '/' + '01' + '6900000000017' + '000000000000000001';
+    // 属性码首位即第 29 位，1 = 盒码；版本 3 / M 级走字母数字模式（容量 61 字符）
+    var payload = 'YZWM.TOBACCO.CN' + '/' + '690102801' + '/' + '01' + '1900000000017' + '000000000000000001';
     var PX = 40;                       // 40 px/mm
     var cv = document.createElement('canvas');
     cv.width = 34 * PX; cv.height = 28 * PX;
@@ -781,31 +664,6 @@
       var c = buildSample();
       if (!c) { toast('示例生成失败'); return; }
       prepare(c, 'sample');
-      // 示例：基准线对准白色底框宽度
-      var s = c._sample;
-      state.ref = {
-        p1: { x: s.whiteBox.x, y: s.whiteBox.y * 0.35 },
-        p2: { x: s.whiteBox.x + s.whiteBox.w, y: s.whiteBox.y * 0.35 },
-        mm: s.whiteMm
-      };
-      var inp = $('#boxRefMm');
-      if (inp) inp.value = s.whiteMm;
-      drawCalib();
-    });
-
-    var pack = $('#boxPack');
-    if (pack) pack.addEventListener('click', function (e) {
-      var b = e.target.closest('button');
-      if (!b) return;
-      state.pack = b.dataset.pack;
-      $$('button', pack).forEach(function (x) { x.classList.toggle('on', x === b); });
-    });
-
-    var refInput = $('#boxRefMm');
-    if (refInput) refInput.addEventListener('input', function () {
-      var v = parseFloat(refInput.value);
-      if (state.ref) state.ref.mm = isFinite(v) && v > 0 ? v : null;
-      if (state.src) drawCalib();
     });
 
     var auto = $('#btnBoxAuto');
@@ -821,7 +679,7 @@
 
     var cancel = $('#btnBoxCancel');
     if (cancel) cancel.addEventListener('click', function () {
-      state.src = null; state.quad = null; state.ref = null;
+      state.src = null; state.quad = null;
       $('#boxCalibPanel').hidden = true;
       $('#boxEmpty').hidden = false;
       $('#boxResult').hidden = true;
@@ -871,13 +729,6 @@
       setTimeout(function () {
         var s = $('#btnBoxSample');
         if (s) s.click();
-        if (params.get('noscale')) {
-          // 演示“未标定”分支
-          state.ref.mm = null;
-          var inp = $('#boxRefMm');
-          if (inp) inp.value = '';
-          drawCalib();
-        }
         setTimeout(function () { analyze(); }, 220);
       }, 340);
     }, 90);
