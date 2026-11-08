@@ -8,7 +8,13 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) {
     root.QRQ = root.QRQ || {};
-    for (var k in api) root.QRQ[k] = api[k];
+    root.QRQ.Label = api;
+    for (var k in api) {
+      // analyze 与二维码分级引擎（qrgrade.js）同名，平铺会覆盖 QRQ.analyze，
+      // 导致二维码页拿到标签量测结果、读 geometry 时报错。此处必须跳过。
+      if (k === 'analyze') continue;
+      root.QRQ[k] = api[k];
+    }
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';

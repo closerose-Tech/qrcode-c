@@ -253,7 +253,7 @@
     var t0 = performance.now();
     var r;
     try {
-      r = QRQ.analyze(state.gray, state.src.width, state.src.height,
+      r = QRQ.Label.analyze(state.gray, state.src.width, state.src.height,
         { quad: state.quad, source: state.src2 },
         { jsQR: resolveJsQR(), IMG: QRQ, QS: QRQ, code128: QRQ, ppm: 10 });
     } catch (e) {

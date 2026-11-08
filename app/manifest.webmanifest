@@ -1,7 +1,7 @@
 {
-  "name": "二维码质量测评 · 中烟信息业保中心",
-  "short_name": "码质测评",
-  "description": "参照 ISO/IEC 15415、ISO/IEC 29158(AIM-DPM)、ISO/IEC 18004 的二维码质量分级测评工具",
+  "name": "二维码印刷质量测评 · 中烟信息业保中心",
+  "short_name": "二维码测评",
+  "description": "二维码印刷质量分级、盒条二维码合规与件烟标签合规测评工具",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

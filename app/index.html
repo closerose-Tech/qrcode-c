@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5f7">
-<meta name="app-version" content="1.0.1">
+<meta name="app-version" content="1.0.2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>二维码测评 · 中烟信息业保中心</title>
+<title>二维码印刷质量测评 · 中烟信息业保中心</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
 <link rel="stylesheet" href="assets/css/app.css">
@@ -37,7 +37,8 @@
   </header>
 
   <nav class="view-tabs" id="viewTabs">
-    <button class="vtab active" data-view="qr">二维码质量</button>
+    <button class="vtab active" data-view="qr">二维码印刷质量</button>
+    <button class="vtab" data-view="box">盒条二维码合规</button>
     <button class="vtab" data-view="label">件烟标签合规</button>
   </nav>
 
@@ -45,7 +46,7 @@
     <div id="viewQr">
     <section class="hero">
       <div class="hero-eyebrow">QR QUALITY VERIFIER</div>
-      <h1>二维码测评</h1>
+      <h1>二维码印刷质量测评</h1>
       <p>ISO/IEC 15415 · 29158 (AIM-DPM) · 18004</p>
     </section>
 
@@ -217,11 +218,133 @@
         </div>
       </section>
     </div><!-- /viewLabel -->
+<div id="viewBox" hidden>
+      <section class="hero compact">
+        <div class="hero-eyebrow">PACK QR COMPLIANCE</div>
+        <h1>盒条二维码合规测评</h1>
+        <p>《盒条二维码技术要求》· 表2 喷印尺寸 · GB/T 33993-2017</p>
+      </section>
+
+      <section class="panel capture" id="boxCapturePanel">
+        <div class="capture-target" id="boxDropZone">
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+          <div class="capture-inner">
+            <svg class="capture-icon" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M8 16V9.5A1.5 1.5 0 0 1 9.5 8H16M32 8h6.5A1.5 1.5 0 0 1 40 9.5V16M40 32v6.5a1.5 1.5 0 0 1-1.5 1.5H32M16 40H9.5A1.5 1.5 0 0 1 8 38.5V32"/>
+              <path d="M17 17h6v6h-6zM25 17h6v6h-6zM17 25h6v6h-6zM27 27h4v4h-4z"/>
+            </svg>
+            <div class="capture-title">拍摄或导入盒 / 条二维码</div>
+            <div class="capture-sub">二维码占画面 30% 以上，四边留出底框；尽量正对、避免反光</div>
+          </div>
+        </div>
+        <div class="capture-actions">
+          <button class="btn btn-primary" id="btnBoxCamera">
+            <svg viewBox="0 0 24 24"><path d="M4 8.6h3l1.4-2h7.2L17 8.6h3a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.6a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.6" r="3.2"/></svg>
+            拍照检测
+          </button>
+          <button class="btn btn-ghost" id="btnBoxGallery">
+            <svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="1.6"/><path d="M3.5 15.6l4.7-4.2 3.6 3.2 3-2.6 5.7 4.6"/><circle cx="9" cy="9.6" r="1.2"/></svg>
+            相册导入
+          </button>
+        </div>
+        <div class="capture-foot">
+          <button class="link-btn" id="btnBoxSample">载入示例二维码</button>
+          <span class="dot-sep"></span>
+          <span class="hint-mobile">图像在本机解析，不上传</span>
+        </div>
+        <input type="file" id="boxFileCamera" accept="image/*" capture="environment" hidden>
+        <input type="file" id="boxFileGallery" accept="image/*" hidden>
+      </section>
+
+      <section class="panel" id="boxParams">
+        <div class="preview-head">
+          <div><div class="section-label">Package &amp; Scale</div><div class="section-title">包装类型与尺寸基准</div></div>
+          <span class="rh-chip" style="height:22px;font-size:10px">表2</span>
+        </div>
+        <div class="seg-grid" id="boxPack">
+          <button data-pack="box-fine" class="on">盒烟 · 细支</button>
+          <button data-pack="box-std">盒烟 · 标准/中支</button>
+          <button data-pack="case-fine">条烟 · 细支</button>
+          <button data-pack="case-std">条烟 · 标准/中支</button>
+        </div>
+        <div class="field-row">
+          <label for="boxRefMm">基准线实际长度</label>
+          <input id="boxRefMm" type="number" inputmode="decimal" step="0.1" min="1" max="500" placeholder="未标定（mm）">
+        </div>
+        <div class="calib-hint">尺寸与套印判定需要一把“尺”：在下方画面中拖动基准线两端，对准一段已知长度（钢尺刻度、包装已知边宽等），再填入毫米数。未标定时只做符号质量与编码判定。</div>
+      </section>
+
+      <section class="panel" id="boxLib">
+        <div class="preview-head">
+          <div><div class="section-label">Spec Library</div><div class="section-title">品规对应表</div></div>
+          <span class="rh-chip" style="height:22px;font-size:10px" id="libCount">演示 5 条</span>
+        </div>
+        <div class="lib-actions">
+          <button class="btn btn-ghost" id="btnLibImport">导入《盒条品规对应表》</button>
+          <button class="link-btn" id="btnLibReset">恢复演示库</button>
+        </div>
+        <div class="field-row">
+          <label for="libQuery">手动查询</label>
+          <input id="libQuery" type="text" inputmode="numeric" placeholder="盒码 13 位 / 条码 12 位">
+          <button class="mini-btn" id="btnLibQuery">查询</button>
+        </div>
+        <div class="calib-hint">支持 .xlsx 与 .csv（列：盒码 / 品规名称 / 条码）。数据仅保存在本机浏览器，不上传、不随安装包发布。</div>
+        <div id="libResult" class="lib-result" hidden></div>
+        <input type="file" id="libFile" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      </section>
+
+      <section class="panel" id="boxCalibPanel" hidden>
+        <div class="preview-head">
+          <div><div class="section-label">Corner &amp; Scale</div><div class="section-title">四角与基准线</div></div>
+          <button class="mini-btn" id="btnBoxAuto">自动识别</button>
+        </div>
+        <div class="calib-wrap"><canvas id="boxCanvas"></canvas></div>
+        <div class="calib-legend">
+          <span><i class="ln-quad"></i>二维码四角</span>
+          <span><i class="ln-ref"></i>尺寸基准线</span>
+        </div>
+        <div class="calib-hint">拖动四个圆点贴合二维码的四个角；拖动基准线两端对准已知长度。</div>
+        <div class="calib-actions">
+          <button class="btn btn-ghost" id="btnBoxCancel">重新选择</button>
+          <button class="btn btn-primary" id="btnBoxAnalyze">开始测评</button>
+        </div>
+      </section>
+
+      <section id="boxProgress" class="panel progress-panel" hidden>
+        <div class="progress-head">
+          <div class="spinner"></div>
+          <div>
+            <div class="progress-title">正在测评</div>
+            <div class="progress-sub" id="boxProgressSub">定位二维码…</div>
+          </div>
+        </div>
+        <ol class="steps" id="boxSteps">
+          <li data-step="0"><i></i><span>二维码定位</span></li>
+          <li data-step="1"><i></i><span>符号分级</span></li>
+          <li data-step="2"><i></i><span>尺寸换算</span></li>
+          <li data-step="3"><i></i><span>编码核验</span></li>
+          <li data-step="4"><i></i><span>合规判定</span></li>
+        </ol>
+      </section>
+
+      <section id="boxResult" hidden></section>
+
+      <section class="panel empty-state" id="boxEmpty">
+        <div class="empty-title">尚未测评</div>
+        <p>载入盒 / 条二维码图像后，按《盒条二维码技术要求》核验版本、纠错级别、59 位编码、喷印尺寸、底框与套印精度，并结合品规对应表判定盒码 / 条码与品规名称。</p>
+        <div class="pill-row">
+          <span class="pill">版本 3 · 纠错 M</span>
+          <span class="pill">59 位编码</span>
+          <span class="pill">≥500DPI</span>
+        </div>
+      </section>
+    </div><!-- /viewBox -->
   </main>
 
   <footer class="foot">
     <div>结果基于非标定手机成像，等级为参照 ISO/IEC 15415 / 29158 的评估值，不可替代校准型条码验证器。</div>
-    <div class="foot-meta">中烟信息业保中心 · 质量测评工具 <span id="appVer">v1.0.1</span></div>
+    <div class="foot-meta">中烟信息业保中心 · 质量测评工具 <span id="appVer">v1.0.2</span></div>
   </footer>
 </div>
 
@@ -273,6 +396,18 @@
         <li><b>判定</b>：表中“标准 − 实测 = 偏差”，偏差在容差内为符合，1.6 倍容差内为临界，超出为超差；超差项在清单与叠加图中以红色突出。</li>
       </ul>
       <p>拍照建议：四角完整入画、正对标签、避免反光与阴影，标签占画面 60% 以上，成像优于 8px/mm。“拍照检测”在应用内直接取景；若未授予相机权限，自动回退到系统相机或相册导入。</p>
+      <h3>盒条二维码合规测评（盒条二维码技术要求）</h3>
+      <p>面向卷烟条（盒）外包装上的行业卷烟二维码，逐项核对码制、版本、纠错级别、编码结构、喷印尺寸、底框与套印精度。</p>
+      <ul>
+        <li><b>码制与结构</b>：QR 码制（ISO/IEC 18004）；版本 3（29×29 模块）；纠错级别 M（约 15%）。</li>
+        <li><b>编码</b>：总长 59 位，字母数字型字符集（0-9、A-Z、a-z 与 . / :），由网络服务地址、标识解析前缀、实体分类码、属性码、流水码及分隔符组成。</li>
+        <li><b>表2 喷印尺寸</b>：盒烟-细支 ≥7×7mm；盒烟-标准支/中支 8×8~10×10mm；条烟 10×10~12×12mm；打印质量 ≥500DPI。</li>
+        <li><b>底框</b>：模块矩阵正下方的空白区域，建议宽度 ≤2mm。</li>
+        <li><b>套印精度</b>：二维码应居于空白区域正中，位置偏差 ≤0.8mm；条烟喷印于端面（C 面），垂直方向严格居中。</li>
+        <li><b>符号质量</b>：按 GB/T 33993-2017《商品二维码》引用 ISO/IEC 15415 方法分级，综合等级不低于 1.5。</li>
+        <li><b>量测方法</b>：jsQR 定位二维码四角 → 由四边形边长得到像素尺度 → 以画面中标注的已知长度为基准换算 px/mm → 量测边长、模块宽、底框与居中偏差。未标注基准时只判符号质量与编码合规，尺寸类指标标为“待标定”，不给出臆测值。</li>
+        <li><b>盒码 / 条码</b>：导入《盒条品规对应表》（盒码 13 位 / 品规名称 / 条码 12 位）后，用二维码内容与表中记录匹配，判定该码属于盒码还是条码并显示品规名称；支持手动输入盒码反查。</li>
+      </ul>
       <h3>边界</h3>
       <p>手机成像缺少标定光源与标准孔径，绝对反射率不可溯源；本工具给出的是“可复现的相对评估”，适用于来料比对、批次趋势与制码工艺排查。正式验收请使用具备 45°/0° 照明与标定白板的条码验证器。</p>
     </div>
@@ -304,8 +439,12 @@
 <script src="assets/js/core/rsblocks.js"></script>
 <script src="assets/js/core/qrstruct.js"></script>
 <script src="assets/js/core/qrgrade.js"></script>
+<script src="assets/js/core/xlsx.js"></script>
+<script src="assets/js/core/pinggui.js"></script>
 <script src="assets/js/core/code128.js"></script>
+<script src="assets/js/core/box.js"></script>
 <script src="assets/js/core/label.js"></script>
+<script src="assets/js/boxui.js"></script>
 <script src="assets/js/labelui.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

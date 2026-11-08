@@ -99,7 +99,8 @@
   }
 
   function fallbackInput(kind) {
-    var el = kind === 'label' ? $('#labelFileCamera') : $('#fileCamera');
+    var el = kind === 'label' ? $('#labelFileCamera')
+      : (kind === 'box' ? $('#boxFileCamera') : $('#fileCamera'));
     if (el) el.click();
   }
 
@@ -143,10 +144,13 @@
     var title = $('#camTitle');
     var tip = $('#camTip');
     if (sheet) sheet.dataset.kind = cam.kind;
-    if (title) title.textContent = cam.kind === 'label' ? '拍摄标签' : '拍摄二维码';
+    if (title) title.textContent = cam.kind === 'label' ? '拍摄标签'
+      : (cam.kind === 'box' ? '拍摄盒 / 条二维码' : '拍摄二维码');
     if (tip) tip.textContent = cam.kind === 'label'
       ? '标签四角完整入画，尽量正对、避免阴影'
-      : '二维码占画面 40% 以上，四周留出静区';
+      : (cam.kind === 'box'
+        ? '二维码连同底框完整入画，正对承印面、避免反光'
+        : '二维码占画面 40% 以上，四周留出静区');
     sheet.hidden = false;
 
     var ok = false;
@@ -210,7 +214,7 @@
     var v = $('#camVideo');
     if (!v || !v.videoWidth) { toast('相机尚未就绪'); return; }
     // 标签量测依赖像素密度，取景成片保留更高分辨率
-    var cap = cam.kind === 'label' ? 2048 : 1600;
+    var cap = cam.kind === 'label' ? 2048 : (cam.kind === 'box' ? 2400 : 1600);
     var s = Math.min(1, cap / Math.max(v.videoWidth, v.videoHeight));
     var c = document.createElement('canvas');
     c.width = Math.round(v.videoWidth * s);
@@ -252,7 +256,8 @@
       else if (act === 'torch') toggleTorch();
       else if (act === 'gallery') {
         closeCam();
-        (cam.kind === 'label' ? $('#labelFileGallery') : $('#fileGallery')).click();
+        (cam.kind === 'label' ? $('#labelFileGallery')
+          : (cam.kind === 'box' ? $('#boxFileGallery') : $('#fileGallery'))).click();
       }
     });
   }
@@ -669,7 +674,7 @@
     var r = state.result;
     if (!r || !r.ok) return;
     var lines = [];
-    lines.push('二维码质量测评报告');
+    lines.push('二维码印刷质量测评报告');
     var m = state.reportMeta || {};
     if (m.sampleName) lines.push('样品：' + m.sampleName);
     if (m.sampleBatch) lines.push('批号：' + m.sampleBatch);
@@ -818,6 +823,7 @@
         tabs.forEach(function (x) { x.classList.toggle('active', x === b); });
         var v = b.dataset.view;
         $('#viewQr').hidden = v !== 'qr';
+        $('#viewBox').hidden = v !== 'box';
         $('#viewLabel').hidden = v !== 'label';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
