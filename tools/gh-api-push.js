@@ -51,27 +51,28 @@ async function api(tk, method, url, body) {
   const remote = new Map();
   (baseTree.tree || []).forEach((e) => { if (e.type === 'blob') remote.set(e.path, e.sha); });
 
-  const files = git(['ls-files', '-z']).split('\0').filter(Boolean);
-  const local = new Set(files);
+  // 用索引里的 blob（已按 .gitattributes / core.autocrlf 归一化），
+  // 不要用工作区原始字节：Windows 上 CRLF 会让哈希与仓库内不一致，反复“假差异”
+  const index = new Map();
+  git(['ls-files', '-s', '-z']).split('\0').filter(Boolean).forEach((line) => {
+    const m = line.match(/^(\d{6}) ([0-9a-f]{40}) \d+\t(.+)$/);
+    if (m) index.set(m[3], { mode: m[1], sha: m[2] });
+  });
+
   const entries = [];
   let uploaded = 0;
 
-  for (const rel of files) {
-    const abs = path.join(ROOT, rel);
-    let st;
-    try { st = fs.statSync(abs); } catch (e) { continue; }
-    if (!st.isFile()) continue;
-    const sha = git(['hash-object', '--', rel]).trim();
-    if (remote.get(rel) === sha) continue;
-    const buf = fs.readFileSync(abs);
+  for (const [rel, info] of index) {
+    if (remote.get(rel) === info.sha) continue;
+    const buf = execFileSync('git', ['cat-file', 'blob', info.sha], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
     const blob = await api(tk, 'POST', `/repos/${REPO}/git/blobs`, { content: buf.toString('base64'), encoding: 'base64' });
-    entries.push({ path: rel, mode: (st.mode & 0o111) ? '100755' : '100644', type: 'blob', sha: blob.sha });
+    entries.push({ path: rel, mode: info.mode, type: 'blob', sha: blob.sha });
     uploaded++;
     console.log('blob', rel);
   }
 
   for (const rel of remote.keys()) {
-    if (!local.has(rel)) {
+    if (!index.has(rel)) {
       entries.push({ path: rel, mode: '100644', type: 'blob', sha: null });
       console.log('del ', rel);
     }
