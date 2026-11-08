@@ -10,6 +10,9 @@ desktop.ini
 node_modules/
 tools/out/
 tools/shots/
+tools/fixtures/
+.tmp/
+.shots/
 *.log
 
 # Android 构建
@@ -32,6 +35,14 @@ dist/
 
 # 本地数据文件（不属于本仓库，避免业务数据外泄）
 *.xlsx
+*.wps
+*.doc
+*.docx
+~$*
+*.wps
+*.doc
+*.docx
+~$*
 
 # 本地环境
 .workbuddy/

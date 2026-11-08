@@ -1,17 +1,20 @@
 /* 离线缓存：首屏与算法脚本全部本地化，安装后可完全离线运行 */
-var CACHE = 'qrq-v1';
+var CACHE = 'qrq-v2';
 var ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './assets/css/app.css',
   './assets/js/app.js',
+  './assets/js/labelui.js',
   './assets/js/vendor/jsQR.js',
   './assets/js/vendor/qrcodegen.js',
   './assets/js/core/img.js',
   './assets/js/core/rsblocks.js',
   './assets/js/core/qrstruct.js',
   './assets/js/core/qrgrade.js',
+  './assets/js/core/code128.js',
+  './assets/js/core/label.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'
 ];

@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5f7">
-<meta name="app-version" content="1.0.0">
+<meta name="app-version" content="1.0.1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>二维码质量测评 · 中烟信息业保中心</title>
+<title>二维码测评 · 中烟信息业保中心</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
 <link rel="stylesheet" href="assets/css/app.css">
@@ -36,10 +36,16 @@
     </div>
   </header>
 
+  <nav class="view-tabs" id="viewTabs">
+    <button class="vtab active" data-view="qr">二维码质量</button>
+    <button class="vtab" data-view="label">件烟标签合规</button>
+  </nav>
+
   <main>
+    <div id="viewQr">
     <section class="hero">
       <div class="hero-eyebrow">QR QUALITY VERIFIER</div>
-      <h1>二维码质量测评</h1>
+      <h1>二维码测评</h1>
       <p>ISO/IEC 15415 · 29158 (AIM-DPM) · 18004</p>
     </section>
 
@@ -58,14 +64,14 @@
         </div>
       </div>
       <div class="capture-actions">
-        <label class="btn btn-primary" for="fileCamera">
+        <button class="btn btn-primary" id="btnCamera">
           <svg viewBox="0 0 24 24"><path d="M4 8.6h3l1.4-2h7.2L17 8.6h3a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.6a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.6" r="3.2"/></svg>
           拍照检测
-        </label>
-        <label class="btn btn-ghost" for="fileGallery">
+        </button>
+        <button class="btn btn-ghost" id="btnGallery">
           <svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="1.6"/><path d="M3.5 15.6l4.7-4.2 3.6 3.2 3-2.6 5.7 4.6"/><circle cx="9" cy="9.6" r="1.2"/></svg>
           相册导入
-        </label>
+        </button>
       </div>
       <div class="capture-foot">
         <button class="link-btn" id="btnSample">载入示例码</button>
@@ -128,11 +134,94 @@
         <span class="pill">小数分级</span>
       </div>
     </section>
+    </div><!-- /viewQr -->
+
+    <div id="viewLabel" hidden>
+      <section class="hero compact">
+        <div class="hero-eyebrow">CIGARETTE CARTON LABEL</div>
+        <h1>件烟标签合规测评</h1>
+        <p>105 × 75mm 基准 · 表1 排版 · 表2 尺寸 · 表3 字体</p>
+      </section>
+
+      <section class="panel capture" id="labelCapturePanel">
+        <div class="capture-target" id="labelDropZone">
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+          <div class="capture-inner">
+            <svg class="capture-icon" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M7 9.5h34v29H7z"/><path d="M12 14.5h9v4h-9zM27 14.5h9v4h-9z" stroke-dasharray="2 2"/>
+              <path d="M12 23.5h24M12 29.5h20M12 34.5h22"/>
+            </svg>
+            <div class="capture-title">拍摄或导入整张标签</div>
+            <div class="capture-sub">四角完整入画、正对标签、避免反光；标签占画面 60% 以上</div>
+          </div>
+        </div>
+        <div class="capture-actions">
+          <button class="btn btn-primary" id="btnLabelCamera">
+            <svg viewBox="0 0 24 24"><path d="M4 8.6h3l1.4-2h7.2L17 8.6h3a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.6a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.6" r="3.2"/></svg>
+            拍照检测
+          </button>
+          <button class="btn btn-ghost" id="btnLabelGallery">
+            <svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="1.6"/><path d="M3.5 15.6l4.7-4.2 3.6 3.2 3-2.6 5.7 4.6"/><circle cx="9" cy="9.6" r="1.2"/></svg>
+            相册导入
+          </button>
+        </div>
+        <div class="capture-foot">
+          <button class="link-btn" id="btnLabelSample">载入示例标签</button>
+          <span class="dot-sep"></span>
+          <span class="hint-mobile">图像在本机解析，不上传</span>
+        </div>
+        <input type="file" id="labelFileCamera" accept="image/*" capture="environment" hidden>
+        <input type="file" id="labelFileGallery" accept="image/*" hidden>
+      </section>
+
+      <section class="panel" id="calibPanel" hidden>
+        <div class="preview-head">
+          <div><div class="section-label">Corner Calibration</div><div class="section-title">四角校准</div></div>
+          <button class="mini-btn" id="btnAutoQuad">自动识别</button>
+        </div>
+        <div class="calib-wrap"><canvas id="calibCanvas"></canvas></div>
+        <div class="calib-hint">拖动四角贴合标签边缘；左右两列阴影框为标准区域位置，可用于对照。</div>
+        <div class="calib-actions">
+          <button class="btn btn-ghost" id="btnCalibCancel">重新选择</button>
+          <button class="btn btn-primary" id="btnCalibOk">开始测评</button>
+        </div>
+      </section>
+
+      <section id="labelProgress" class="panel progress-panel" hidden>
+        <div class="progress-head">
+          <div class="spinner"></div>
+          <div>
+            <div class="progress-title">正在量测</div>
+            <div class="progress-sub" id="labelProgressSub">标签定位…</div>
+          </div>
+        </div>
+        <ol class="steps" id="labelSteps">
+          <li data-step="0"><i></i><span>标签定位</span></li>
+          <li data-step="1"><i></i><span>透视校正</span></li>
+          <li data-step="2"><i></i><span>区域量测</span></li>
+          <li data-step="3"><i></i><span>字号估算</span></li>
+          <li data-step="4"><i></i><span>合规判定</span></li>
+        </ol>
+      </section>
+
+      <section id="labelResult" hidden></section>
+
+      <section class="panel empty-state" id="labelEmpty">
+        <div class="empty-title">尚未测评</div>
+        <p>载入标签图像后，按 105×75mm 基准量测二维码、一维码、标志、规格名称与数字编码区的位置、尺寸与字号，逐项对照标准并给出偏差。</p>
+        <div class="pill-row">
+          <span class="pill">表2 区域尺寸</span>
+          <span class="pill">表3 字体</span>
+          <span class="pill">比例换算</span>
+        </div>
+      </section>
+    </div><!-- /viewLabel -->
   </main>
 
   <footer class="foot">
     <div>结果基于非标定手机成像，等级为参照 ISO/IEC 15415 / 29158 的评估值，不可替代校准型条码验证器。</div>
-    <div class="foot-meta">中烟信息业保中心 · 质量测评工具 <span id="appVer">v1.0.0</span></div>
+    <div class="foot-meta">中烟信息业保中心 · 质量测评工具 <span id="appVer">v1.0.1</span></div>
   </footer>
 </div>
 
@@ -174,9 +263,38 @@
       <p>按符号结构生成功能图形期望图案，读取格式信息（BCH 15,5）、掩模号与纠错块结构；按码字逐个执行 Reed-Solomon 伴随式计算与 Berlekamp-Massey 求解，得到实际被纠正的码字数——UEC 为本机实测值而非估算。</p>
       <h3>ISO/IEC 15416 与 ISO/IEC 16022 的覆盖</h3>
       <p>一维条码（15416：边缘判定、最小反射率、最小边缘对比度、缺陷、可译码性）与 Data Matrix（16022：L 型定位、时钟轨、纠错余量）的质量分级与 15415 同源：反射率、采样孔径、静区与纠错余量的量测原则在本工具中已按 2D 符号实现。两者的专用解码与分级流程将在后续版本开放，当前版本对 QR Code 提供完整分级。</p>
+      <h3>件烟标签合规测评（卷烟件烟标签技术规范）</h3>
+      <p>以 105mm×75mm 标签为基准，先按标签四角做透视校正，再用二维码（标准 35×35mm）与一维码（标准 50×28mm）的实际像素尺寸反推 px/mm，从而量测各区域的位置、尺寸与字号。</p>
+      <ul>
+        <li><b>表1 规格名称</b>：单行或双行居中；超过 6 个汉字用双行，单行字号 24pt。</li>
+        <li><b>表2 区域尺寸</b>：标志 6,6 · 50×12；间隔线 50×0.2；规格名称 6,20.4 · 50×17；一维码 6,41 · 50×28；二维码 62,6 · 35×35（右边距 8）。</li>
+        <li><b>表3 字体</b>：规格名称首行 24pt、次行 20pt（≤7 汉字）或 14pt；流水码 11pt；商品编码 14pt；生产信息 11pt（1pt = 0.3528mm）。</li>
+        <li><b>量测方法</b>：Otsu 全局阈值 → 行/列墨色投影切分文字行带 → 取包围盒；字号由字面高（CJK ≈0.88em、数字 ≈0.72em）与数字步进（≈0.55em）反算。</li>
+        <li><b>判定</b>：表中“标准 − 实测 = 偏差”，偏差在容差内为符合，1.6 倍容差内为临界，超出为超差；超差项在清单与叠加图中以红色突出。</li>
+      </ul>
+      <p>拍照建议：四角完整入画、正对标签、避免反光与阴影，标签占画面 60% 以上，成像优于 8px/mm。“拍照检测”在应用内直接取景；若未授予相机权限，自动回退到系统相机或相册导入。</p>
       <h3>边界</h3>
       <p>手机成像缺少标定光源与标准孔径，绝对反射率不可溯源；本工具给出的是“可复现的相对评估”，适用于来料比对、批次趋势与制码工艺排查。正式验收请使用具备 45°/0° 照明与标定白板的条码验证器。</p>
     </div>
+  </div>
+</div>
+
+<!-- 相机取景 -->
+<div class="cam" id="camSheet" hidden>
+  <div class="cam-bar">
+    <button class="cam-text" data-cam="close">关闭</button>
+    <div class="cam-title" id="camTitle">拍摄</div>
+    <button class="cam-text" data-cam="switch">切换</button>
+  </div>
+  <div class="cam-stage">
+    <video id="camVideo" playsinline muted autoplay></video>
+    <div class="cam-frame"><i></i><i></i><i></i><i></i></div>
+    <div class="cam-tip" id="camTip">将标签充满取景框，保持正向、避免阴影</div>
+  </div>
+  <div class="cam-foot">
+    <button class="cam-side" data-cam="torch" id="camTorch" hidden>补光</button>
+    <button class="cam-shutter" data-cam="shot" aria-label="拍照"><span></span></button>
+    <button class="cam-side" data-cam="gallery">相册</button>
   </div>
 </div>
 
@@ -186,6 +304,9 @@
 <script src="assets/js/core/rsblocks.js"></script>
 <script src="assets/js/core/qrstruct.js"></script>
 <script src="assets/js/core/qrgrade.js"></script>
+<script src="assets/js/core/code128.js"></script>
+<script src="assets/js/core/label.js"></script>
+<script src="assets/js/labelui.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

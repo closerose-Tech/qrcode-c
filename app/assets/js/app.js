@@ -80,6 +80,185 @@
     MR: [5, 10, 15, 20], DDG: []
   };
 
+  window.AppToast = toast;
+
+  /* ------------------------------ 相机取景 ------------------------------ */
+  var cam = { stream: null, facing: 'environment', onShot: null, kind: 'qr', torchOn: false };
+
+  function camSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  }
+
+  function stopCam() {
+    if (cam.stream) {
+      cam.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      cam.stream = null;
+    }
+    var v = $('#camVideo');
+    if (v) v.srcObject = null;
+  }
+
+  function fallbackInput(kind) {
+    var el = kind === 'label' ? $('#labelFileCamera') : $('#fileCamera');
+    if (el) el.click();
+  }
+
+  async function startCam() {
+    stopCam();
+    // 部分机型对 ideal 分辨率/朝向约束敏感，逐级降级以免直接放弃取景
+    var tries = [
+      { audio: false, video: { facingMode: { ideal: cam.facing }, width: { ideal: 2560 }, height: { ideal: 1440 } } },
+      { audio: false, video: { facingMode: cam.facing } },
+      { audio: false, video: true }
+    ];
+    var stream = null, lastErr = null;
+    for (var i = 0; i < tries.length && !stream; i++) {
+      try { stream = await navigator.mediaDevices.getUserMedia(tries[i]); }
+      catch (e) { lastErr = e; }
+    }
+    if (!stream) throw (lastErr || new Error('无法访问摄像头'));
+    cam.stream = stream;
+    var v = $('#camVideo');
+    v.srcObject = stream;
+    v.muted = true;
+    v.setAttribute('playsinline', '');
+    try { await v.play(); } catch (e) { /* iOS 需用户手势，忽略 */ }
+    var track = stream.getVideoTracks()[0];
+    var caps = (track && track.getCapabilities) ? track.getCapabilities() : {};
+    var torchBtn = $('#camTorch');
+    if (torchBtn) {
+      torchBtn.hidden = !caps.torch;
+      torchBtn.classList.remove('on');
+    }
+    cam.torchOn = false;
+    return true;
+  }
+
+  async function openCam(onShot, kind) {
+    cam.onShot = onShot;
+    cam.kind = kind || 'qr';
+    if (!camSupported()) { fallbackInput(cam.kind); return; }
+
+    var sheet = $('#camSheet');
+    var title = $('#camTitle');
+    var tip = $('#camTip');
+    if (sheet) sheet.dataset.kind = cam.kind;
+    if (title) title.textContent = cam.kind === 'label' ? '拍摄标签' : '拍摄二维码';
+    if (tip) tip.textContent = cam.kind === 'label'
+      ? '标签四角完整入画，尽量正对、避免阴影'
+      : '二维码占画面 40% 以上，四周留出静区';
+    sheet.hidden = false;
+
+    var ok = false;
+    // 安卓 WebView：先确认系统相机权限，拿到授权再取景，避免一次注定失败的 getUserMedia
+    if (window.AndroidBridge && window.AndroidBridge.requestCamera) {
+      var granted = await ensureNativeCam();
+      if (!granted) {
+        sheet.hidden = true;
+        toast('未获得相机权限，已切换为系统拍照');
+        fallbackInput(cam.kind);
+        return;
+      }
+    }
+    try { ok = await startCam(); } catch (e) { ok = false; }
+
+    if (!ok) {
+      sheet.hidden = true;
+      toast('无法启用取景相机，已切换为系统拍照');
+      fallbackInput(cam.kind);
+    }
+  }
+
+  /** 等待原生授权结果（已授权时立即回调） */
+  var camPermWaiter = null;
+  window.onCameraPermission = function (granted) {
+    var w = camPermWaiter;
+    camPermWaiter = null;
+    if (w) w(!!granted);
+  };
+
+  function ensureNativeCam() {
+    if (!window.AndroidBridge || !window.AndroidBridge.requestCamera) return Promise.resolve(false);
+    return new Promise(function (resolve) {
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true; camPermWaiter = null;
+        resolve(true);            // 超时未回执：仍尝试一次取景，失败则由上层回退
+      }, 20000);
+      camPermWaiter = function (g) {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        resolve(g);
+      };
+      try {
+        window.AndroidBridge.requestCamera();
+      } catch (e) {
+        clearTimeout(timer); settled = true; camPermWaiter = null;
+        resolve(true);
+      }
+    });
+  }
+
+  function closeCam() {
+    stopCam();
+    var sheet = $('#camSheet');
+    if (sheet) sheet.hidden = true;
+  }
+
+  function shootCam() {
+    var v = $('#camVideo');
+    if (!v || !v.videoWidth) { toast('相机尚未就绪'); return; }
+    // 标签量测依赖像素密度，取景成片保留更高分辨率
+    var cap = cam.kind === 'label' ? 2048 : 1600;
+    var s = Math.min(1, cap / Math.max(v.videoWidth, v.videoHeight));
+    var c = document.createElement('canvas');
+    c.width = Math.round(v.videoWidth * s);
+    c.height = Math.round(v.videoHeight * s);
+    var ctx = c.getContext('2d', { willReadFrequently: true });
+    if (ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+    var cb = cam.onShot;
+    cam.onShot = null;
+    closeCam();
+    if (cb) cb(c);
+  }
+
+  async function switchCam() {
+    cam.facing = cam.facing === 'environment' ? 'user' : 'environment';
+    try { await startCam(); } catch (e) { toast('切换镜头失败'); }
+  }
+
+  async function toggleTorch() {
+    if (!cam.stream) return;
+    var track = cam.stream.getVideoTracks()[0];
+    cam.torchOn = !cam.torchOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: cam.torchOn }] });
+      $('#camTorch').classList.toggle('on', cam.torchOn);
+    } catch (e) { toast('该设备不支持补光'); }
+  }
+
+  function bindCam() {
+    var sheet = $('#camSheet');
+    if (!sheet) return;
+    sheet.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-cam]');
+      if (!b) return;
+      var act = b.dataset.cam;
+      if (act === 'close') closeCam();
+      else if (act === 'shot') shootCam();
+      else if (act === 'switch') switchCam();
+      else if (act === 'torch') toggleTorch();
+      else if (act === 'gallery') {
+        closeCam();
+        (cam.kind === 'label' ? $('#labelFileGallery') : $('#fileGallery')).click();
+      }
+    });
+  }
+
+  window.Camera = { open: openCam, close: closeCam };
+
   /* ------------------------------ 图像载入 ------------------------------ */
   /* 统一用 DataURL 载入：避免 blob/file 源污染画布导致 getImageData 失败 */
   function loadImageFromFile(file) {
@@ -613,6 +792,8 @@
 
   /* ------------------------------ 初始化 ------------------------------ */
   function init() {
+    bindCam();
+
     var vMeta = document.querySelector('meta[name="app-version"]');
     if (vMeta && $('#appVer')) $('#appVer').textContent = 'v' + vMeta.getAttribute('content');
 
@@ -623,6 +804,23 @@
     $('#fileGallery').addEventListener('change', function (e) {
       if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
       e.target.value = '';
+    });
+
+    $('#btnCamera').addEventListener('click', function () {
+      openCam(function (c) { analyzeCanvas(c); }, 'qr');
+    });
+    $('#btnGallery').addEventListener('click', function () { $('#fileGallery').click(); });
+
+    // 视图切换
+    var tabs = $$('#viewTabs .vtab');
+    tabs.forEach(function (b) {
+      b.addEventListener('click', function () {
+        tabs.forEach(function (x) { x.classList.toggle('active', x === b); });
+        var v = b.dataset.view;
+        $('#viewQr').hidden = v !== 'qr';
+        $('#viewLabel').hidden = v !== 'label';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
     });
 
     $('#btnSample').addEventListener('click', function () {

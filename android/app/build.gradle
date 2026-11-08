@@ -18,8 +18,8 @@ def cfg = { String key, String fallback ->
     (v == null || v.isEmpty()) ? fallback : v
 }
 
-def verName = cfg('VERSION_NAME', '1.0.0')
-def verCode = cfg('VERSION_CODE', '1').toInteger()
+def verName = cfg('VERSION_NAME', '1.0.1')
+def verCode = cfg('VERSION_CODE', '2').toInteger()
 
 def ksPath = cfg('KEYSTORE_FILE', '')
 def ksFile = null
