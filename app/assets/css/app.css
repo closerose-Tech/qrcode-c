@@ -491,6 +491,7 @@ body {
 /* ------------------------------- 页脚 ------------------------------- */
 .foot { padding: 8px 4px 12px; font-size: 10.5px; color: var(--faint); line-height: 1.6; }
 .foot-meta { margin-top: 5px; font-family: var(--mono); letter-spacing: .04em; }
+.foot-dev { margin-top: 2px; font-size: 10.5px; color: var(--faint); letter-spacing: .06em; }
 
 /* ------------------------------- 底部弹层 ------------------------------- */
 .sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
@@ -554,7 +555,7 @@ body {
 /* ------------------------------- 打印 / 导出 ------------------------------- */
 @media print {
   body { background: #fff; }
-  .topbar-actions, .capture, .options, .rh-actions, .foot-meta, .sheet, .mini-seg, .empty-state, .progress-panel { display: none !important; }
+  .topbar-actions, .capture, .options, .rh-actions, .foot-meta, .foot-dev, .sheet, .mini-seg, .empty-state, .progress-panel { display: none !important; }
   .panel { box-shadow: none; break-inside: avoid; }
   .app { max-width: none; padding: 0; }
   .grade-ring .bar { transition: none; }
