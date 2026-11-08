@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>drag-test</title>
+<style>body{margin:0;font:13px/1.6 monospace}#c{display:block;margin:0}</style>
+</head>
+<body>
+<pre id="PROBE">running</pre>
+<canvas id="c"></canvas>
+<script src="../app/assets/js/core/handles.js"></script>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(name, cond, detail) {
+    if (cond) { pass++; out.push('PASS ' + name); }
+    else { fail++; out.push('FAIL ' + name + (detail ? ' — ' + detail : '')); }
+  }
+
+  var src = { w: 1800, h: 2400 };
+  var cv = document.getElementById('c');
+  cv.width = 430; cv.height = 573;
+  cv.style.width = '430px'; cv.style.height = '573px';
+
+  var pts = [{ x: 600, y: 700 }, { x: 1200, y: 700 }, { x: 1200, y: 1300 }, { x: 600, y: 1300 }];
+  var hit = [];
+  QRQ.Handles.bind(cv, {
+    size: function () { return src; },
+    points: function () { return pts; },
+    setPoint: function (i, p) { pts[i] = { x: p.x, y: p.y }; hit.push(i); },
+    onDrag: function () {}
+  });
+
+  var r = cv.getBoundingClientRect();
+  var kx = src.w / r.width, ky = src.h / r.height;
+  function ev(type, target, x, y) {
+    var e = new PointerEvent(type, { clientX: x, clientY: y, pointerId: 7, isPrimary: true, bubbles: true, cancelable: true });
+    target.dispatchEvent(e);
+    return e;
+  }
+  function disp(p) { return { x: r.left + p.x / kx, y: r.top + p.y / ky }; }
+
+  // 1) 抓第 0 个角并右移 50、下移 50（显示像素）
+  var d0 = disp(pts[0]);
+  ev('pointerdown', cv, d0.x, d0.y);
+  ok('命中左上角', cv.__handles.active() === 0, 'active=' + cv.__handles.active());
+
+  ev('pointermove', window, d0.x + 50, d0.y + 50);
+  var movedX = 600 + 50 * kx, movedY = 700 + 50 * ky;
+  ok('角点按源像素位移', Math.abs(pts[0].x - movedX) < 1.5 && Math.abs(pts[0].y - movedY) < 1.5,
+    'got ' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1) + ' want ' + movedX.toFixed(1) + ',' + movedY.toFixed(1));
+  ev('pointerup', window, d0.x + 50, d0.y + 50);
+  ok('抬起后释放', cv.__handles.active() === -1 && !cv.__handles.dragging());
+
+  // 2) 越界夹紧
+  var d1 = disp(pts[1]);
+  ev('pointerdown', cv, d1.x, d1.y);
+  ev('pointermove', window, d1.x + 900, d1.y - 900);
+  ok('越界夹紧在图像内', pts[1].x <= src.w && pts[1].y >= 0, 'x=' + pts[1].x + ' y=' + pts[1].y);
+  ev('pointerup', window, 0, 0);
+
+  // 3) 内部拖动整框
+  var before = pts.map(function (p) { return { x: p.x, y: p.y }; });
+  var c = { x: (pts[0].x + pts[2].x) / 2, y: (pts[0].y + pts[2].y) / 2 };
+  var dc = disp(c);
+  ev('pointerdown', cv, dc.x, dc.y);
+  ok('命中框内进入整体拖动', cv.__handles.dragging() && cv.__handles.active() === -1);
+  ev('pointermove', window, dc.x - 20, dc.y - 20);
+  var dx = pts[0].x - before[0].x, dy = pts[0].y - before[0].y;
+  var same = pts.every(function (p, i) {
+    return Math.abs((p.x - before[i].x) - dx) < 0.01 && Math.abs((p.y - before[i].y) - dy) < 0.01;
+  });
+  ok('整体平移保持形状', same && Math.abs(dx + 20 * kx) < 1.5, 'dx=' + dx.toFixed(1) + ' want ' + (-20 * kx).toFixed(1));
+  ev('pointerup', window, 0, 0);
+
+  // 4) 框外点击不触发
+  var outP = disp({ x: 10, y: 10 });
+  ev('pointerdown', cv, outP.x, outP.y);
+  ok('框外不误触', !cv.__handles.dragging());
+
+  // 5) 触摸事件兜底（模拟不支持 PointerEvent 的内核）
+  cv.__handles = null;
+  document.body.removeChild(cv);
+  var cv2 = document.createElement('canvas');
+  cv2.width = 430; cv2.height = 573;
+  cv2.style.width = '430px'; cv2.style.height = '573px';
+  cv2.style.position = 'fixed'; cv2.style.left = '0'; cv2.style.top = '0';
+  document.body.appendChild(cv2);
+  var pts2 = [{ x: 600, y: 700 }, { x: 1200, y: 700 }, { x: 1200, y: 1300 }, { x: 600, y: 1300 }];
+  QRQ.Handles.bind(cv2, {
+    size: function () { return src; },
+    points: function () { return pts2; },
+    setPoint: function (i, p) { pts2[i] = { x: p.x, y: p.y }; },
+    onDrag: function () {}
+  });
+  var r2 = cv2.getBoundingClientRect();
+  function touch(type, x, y) {
+    var t = new Touch({ identifier: 1, target: cv2, clientX: x, clientY: y });
+    var e = new TouchEvent(type, {
+      touches: type === 'touchend' ? [] : [t],
+      changedTouches: [t], bubbles: true, cancelable: true
+    });
+    (type === 'touchstart' || type === 'touchmove' ? cv2 : window).dispatchEvent(e);
+  }
+  var p0 = { x: r2.left + 600 * (r2.width / src.w), y: r2.top + 700 * (r2.height / src.h) };
+  touch('touchstart', p0.x, p0.y);
+  ok('触摸命中角点', cv2.__handles.active() === 0, 'active=' + cv2.__handles.active());
+  touch('touchmove', p0.x + 10, p0.y + 10);
+  ok('触摸拖动生效', pts2[0].x > 600 && pts2[0].y > 700, 'x=' + pts2[0].x.toFixed(1));
+  touch('touchend', 0, 0);
+
+  out.unshift('RESULT ' + (fail ? 'FAIL' : 'OK') + ' pass=' + pass + ' fail=' + fail);
+  var el = document.getElementById('PROBE');
+  el.textContent = out.join('\n');
+  document.title = (fail ? 'FAIL' : 'OK') + ' ' + pass + '/' + (pass + fail);
+})();
+</script>
+</body>
+</html>

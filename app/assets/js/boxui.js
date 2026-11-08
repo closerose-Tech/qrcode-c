@@ -175,29 +175,35 @@
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(state.src, 0, 0, cw, ch);
     cv._scale = scale;
+    cv.__quad = state.quad;      // 排障：便于自动化核对四角坐标
+    cv.__src = { w: state.src.width, h: state.src.height };
 
     var quad = state.quad;
+    var act = cv.__active === undefined ? -1 : cv.__active;
     ctx.save();
-    ctx.strokeStyle = 'rgba(168,121,27,.95)';
-    ctx.lineWidth = 1.6;
     ctx.beginPath();
     quad.forEach(function (p, i) {
       var x = p.x * scale, y = p.y * scale;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
     ctx.closePath();
+    ctx.fillStyle = 'rgba(168,121,27,.08)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(168,121,27,.95)';
+    ctx.lineWidth = 1.6;
     ctx.stroke();
-    quad.forEach(function (p) {
+    quad.forEach(function (p, i) {
       var x = p.x * scale, y = p.y * scale;
+      var on = i === act;
       ctx.beginPath();
-      ctx.arc(x, y, 9, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,.94)';
+      ctx.arc(x, y, on ? 12 : 10, 0, Math.PI * 2);
+      ctx.fillStyle = on ? 'rgba(255,246,224,.98)' : 'rgba(255,255,255,.94)';
       ctx.fill();
       ctx.strokeStyle = '#a8791b';
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = on ? 2.4 : 1.8;
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+      ctx.arc(x, y, on ? 3.4 : 2.6, 0, Math.PI * 2);
       ctx.fillStyle = '#a8791b';
       ctx.fill();
     });
@@ -214,13 +220,14 @@
       ctx.lineTo(b.x * scale, b.y * scale);
       ctx.stroke();
       ctx.setLineDash([]);
-      [a, b].forEach(function (p) {
+      [a, b].forEach(function (p, i) {
+        var on = (4 + i) === act;
         ctx.beginPath();
-        ctx.arc(p.x * scale, p.y * scale, 7, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,.94)';
+        ctx.arc(p.x * scale, p.y * scale, on ? 10 : 7.5, 0, Math.PI * 2);
+        ctx.fillStyle = on ? 'rgba(255,240,232,.98)' : 'rgba(255,255,255,.94)';
         ctx.fill();
         ctx.strokeStyle = '#c64820';
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = on ? 2.4 : 1.8;
         ctx.stroke();
       });
       var mx = (a.x + b.x) / 2 * scale, my = (a.y + b.y) / 2 * scale;
@@ -239,55 +246,26 @@
   function bindCalib() {
     var cv = $('#boxCanvas');
     if (!cv) return;
-    var active = -1;
 
-    function pos(e) {
-      var r = cv.getBoundingClientRect();
-      var t = e.touches ? e.touches[0] : e;
-      return { x: (t.clientX - r.left) * (cv.width / r.width), y: (t.clientY - r.top) * (cv.height / r.height) };
-    }
-
-    function onDown(e) {
-      if (!state.quad) return;
-      var p = pos(e);
-      var best = -1, bd = 30;
-      state.quad.forEach(function (q, i) {
-        var d = Math.hypot(q.x - p.x, q.y - p.y);
-        if (d < bd) { bd = d; best = i; }
-      });
-      if (best < 0 && state.ref) {
-        [state.ref.p1, state.ref.p2].forEach(function (q, i) {
-          var d = Math.hypot(q.x - p.x, q.y - p.y);
-          if (d < bd) { bd = d; best = 4 + i; }
-        });
-      }
-      if (best >= 0) {
-        active = best;
-        if (e.pointerId !== undefined && cv.setPointerCapture) cv.setPointerCapture(e.pointerId);
-        e.preventDefault();
-      }
-    }
-
-    function onMove(e) {
-      if (active < 0) return;
-      var p = pos(e);
-      p.x = Math.max(0, Math.min(state.src.width, p.x));
-      p.y = Math.max(0, Math.min(state.src.height, p.y));
-      if (active < 4) state.quad[active] = p;
-      else if (active === 4) state.ref.p1 = p;
-      else state.ref.p2 = p;
-      drawCalib();
-      e.preventDefault();
-    }
-
-    function onUp() { active = -1; }
-
-    cv.addEventListener('pointerdown', onDown);
-    cv.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    cv.addEventListener('touchstart', onDown, { passive: false });
-    cv.addEventListener('touchmove', onMove, { passive: false });
-    cv.addEventListener('touchend', onUp);
+    // 四角（源图像素坐标）与基准线端点共用一套手柄拖动：
+    // 命中判定在显示空间、位移换算回源空间，详见 core/handles.js
+    QRQ.Handles.bind(cv, {
+      size: function () {
+        return { w: state.src ? state.src.width : cv.width, h: state.src ? state.src.height : cv.height };
+      },
+      points: function () {
+        var out = (state.quad || []).slice();
+        if (state.ref) out.push(state.ref.p1, state.ref.p2);
+        return out;
+      },
+      polyPoints: function () { return state.quad || []; },
+      setPoint: function (i, p) {
+        if (i < 4) { if (state.quad) state.quad[i] = p; return; }
+        if (!state.ref) return;
+        if (i === 4) state.ref.p1 = p; else state.ref.p2 = p;
+      },
+      onDrag: function () { drawCalib(); }
+    });
   }
 
   /* ------------------------------ 测评 ------------------------------ */
@@ -387,7 +365,7 @@
     html += '<div class="panel lab-head st-' + st + '">' +
       '<div class="lh-top">' +
         '<div class="lh-titles">' +
-          '<div class="rh-label">PACK QR COMPLIANCE · 盒条二维码技术要求</div>' +
+          '<div class="rh-label">PACK QR COMPLIANCE · GB/T 33993-2017</div>' +
           '<div class="lh-title">盒条二维码 <em>' + badgeLabel(st) + '</em> 标准要求</div>' +
         '</div>' +
         '<div class="lh-badge ' + st + '">' + (st === 'ok' ? 'ALL PASS' : (st === 'warn' ? 'CHECK' : 'FAIL')) + '</div>' +
@@ -508,7 +486,7 @@
               '<span class="seg-pos">' + row.from + '–' + row.to + '</span>' +
               '<span class="seg-val mono">' + esc(row.value || '—') + '</span></div>';
           }).join('') + '</div>' +
-          '<div class="note-line">分段依据《盒条二维码技术要求》59 位组成；属性码与流水码的位段边界以行业下发的编码规则为准。</div>';
+          '<div class="note-line">分段依据行业规定的 59 位编码结构；属性码与流水码的位段边界以行业下发的编码规则为准。</div>';
       }
     } else {
       html += '<div class="note-line">未能识读二维码：可能为图像模糊、对比度不足，或画面内不存在二维码。</div>';
@@ -628,7 +606,7 @@
   function copyReport() {
     var r = state.result;
     if (!r) return;
-    var lines = ['盒条二维码合规测评报告', '标准：盒条二维码技术要求', '包装类型：' + r.pack.label];
+    var lines = ['盒条二维码合规测评报告', '标准：GB/T 33993-2017', '包装类型：' + r.pack.label];
     if (r.hit) lines.push('码属：' + r.hit.typeText + ' ' + r.hit.code + (r.hit.name ? '，品规 ' + r.hit.name : ''));
     lines.push('结论：' + badgeLabel(r.status) +
       '（符合 ' + r.counts.ok + ' / 临界 ' + r.counts.warn + ' / 超差 ' + r.counts.fail + '）');
@@ -716,7 +694,7 @@
     ctx.fillStyle = 'rgba(255,255,255,.08)';
     ctx.fillRect(0, 22 * PX, cv.width, 0.3 * PX);
 
-    var sideMm = 8;                    // 表2：盒-标准支 8~10mm
+    var sideMm = 8;                    // 盒烟 · 标准支/中支：8~10mm
     var frameMm = 1.2;                 // 底框（≤2mm）
     var whiteMm = sideMm + frameMm * 2;
     var wx = (cv.width - whiteMm * PX) / 2;

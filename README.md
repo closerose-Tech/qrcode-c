@@ -3,8 +3,8 @@
 移动端卷烟质量测评工具，三个相互独立的测评页：
 
 1. **二维码印刷质量**：拍照或导入图片后给出分级参数、识读数据与中文测评结论，分级逻辑参照 ISO/IEC 15415、ISO/IEC 29158（AIM-DPM）与 ISO/IEC 18004；支持重新检测、复制结论、导出报告。
-2. **盒条二维码合规**：按《盒条二维码技术要求》核验码制、版本 3（29×29）、纠错 M、59 位编码、表2 喷印尺寸与 ≥500DPI、底框 ≤2mm、套印偏差 ≤0.8mm，并按《盒条品规对应表》判定**盒码 / 条码与品规名称**。
-3. **件烟标签合规**：按《卷烟件烟标签技术规范》以 105×75mm 为基准，量测二维码、一维码、标志、间隔线、规格名称与数字编码区的位置、尺寸与字号，逐项对照表1/表2/表3 并给出**偏差值与中文结论**，同时展示标签内二维码与一维码的数据。
+2. **盒条二维码合规**：按 GB/T 33993-2017 核验码制、版本 3（29×29）、纠错 M、59 位编码、喷印尺寸与 ≥500DPI、底框 ≤2mm、套印偏差 ≤0.8mm，并按《盒条品规对应表》判定**盒码 / 条码与品规名称**。
+3. **件烟标签合规**：按《卷烟件烟标签技术规范》以 105×75mm 为基准，量测二维码、一维码、标志、间隔线、规格名称与数字编码区的位置、尺寸与字号，逐项对照区域尺寸与字体规格并给出**偏差值与中文结论**，同时展示标签内二维码与一维码的数据。
 
 ![预览](docs/preview.png)
 
@@ -17,7 +17,7 @@ https://github.com/closerose-Tech/qrcode-c
 | 用途 | 地址 / 方式 |
 | --- | --- |
 | 网页版（手机可直接用） | https://closerose-tech.github.io/qrcode-c/ |
-| 安卓安装包（直链） | [qr-quality-verifier-1.0.2.apk](https://github.com/closerose-Tech/qrcode-c/releases/download/v1.0.2/qr-quality-verifier-1.0.2.apk) |
+| 安卓安装包（直链） | [qr-quality-verifier-1.0.3.apk](https://github.com/closerose-Tech/qrcode-c/releases/download/v1.0.3/qr-quality-verifier-1.0.3.apk) |
 | 每次构建的临时产物 | Actions → **Android APK** → 对应运行 → Artifacts |
 | 本地提交 | `git push`（凭据由 Git Credential Manager 保存） |
 
@@ -42,6 +42,7 @@ app/                      可直接部署的网页应用（PWA，可离线）
     xlsx.js               最小 XLSX / CSV 读取器（ZIP + DecompressionStream，无第三方依赖）
     pinggui.js            盒条品规库：盒码/条码匹配、本机持久化
     label.js              件烟标签量测引擎：四角检出、透视校正、区域/字号量测、合规判定
+    handles.js            校准手柄拖动（源像素↔显示像素换算、命中判定、整框平移）
   assets/js/boxui.js      盒条页交互层：四角与基准线校准、品规导入、指标清单与结论渲染
   assets/js/labelui.js    标签页交互层：四角校准画布、测评流程、指标清单与结论渲染
   assets/js/vendor/       jsQR 1.4（识读定位）、qrcode-generator（示例码/结构表）
@@ -49,6 +50,8 @@ android/                  Android Studio 工程（WebView 外壳，资源见 ass
 tools/test.js             合成用例验证脚本（node tools/test.js）
 tools/make-fixtures.py    标签灰度样本生成（标准/透视/二维码缩尺/字号偏差/低分辨率）
 tools/test-label.js       标签测评端到端断言（node tools/test-label.js）
+tools/test-drag.js        手柄拖动逻辑浏览器断言（tools/drag-test.html）
+tools/cdp-drag.js         真实鼠标事件拖拽四角的端到端校验（node tools/cdp-drag.js）
 docs/preview.png          整页预览
 ```
 

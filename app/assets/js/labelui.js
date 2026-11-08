@@ -131,6 +131,8 @@
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(state.src, 0, 0, cw, ch);
     cv._scale = scale;
+    cv.__quad = state.quad;      // 排障：便于自动化核对四角坐标
+    cv.__src = { w: state.src.width, h: state.src.height };
 
     var quad = state.quad;
     var Hm = QRQ.homography(quad);
@@ -159,27 +161,31 @@
     ctx.restore();
 
     // 四边形与角点
+    var act = cv.__active === undefined ? -1 : cv.__active;
     ctx.save();
-    ctx.strokeStyle = 'rgba(201,162,39,.95)';
-    ctx.lineWidth = 1.6;
     ctx.beginPath();
     quad.forEach(function (p, i) {
       var x = p.x * scale, y = p.y * scale;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
     ctx.closePath();
+    ctx.fillStyle = 'rgba(201,162,39,.07)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(201,162,39,.95)';
+    ctx.lineWidth = 1.6;
     ctx.stroke();
     quad.forEach(function (p, i) {
       var x = p.x * scale, y = p.y * scale;
+      var on = i === act;
       ctx.beginPath();
-      ctx.arc(x, y, 9, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,.92)';
+      ctx.arc(x, y, on ? 12 : 10, 0, Math.PI * 2);
+      ctx.fillStyle = on ? 'rgba(255,246,224,.98)' : 'rgba(255,255,255,.92)';
       ctx.fill();
       ctx.strokeStyle = '#a8791b';
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = on ? 2.4 : 1.8;
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+      ctx.arc(x, y, on ? 3.4 : 2.6, 0, Math.PI * 2);
       ctx.fillStyle = '#a8791b';
       ctx.fill();
     });
@@ -188,45 +194,17 @@
 
   function bindCalib() {
     var cv = $('#calibCanvas');
-    var active = -1;
+    if (!cv) return;
 
-    function pos(e) {
-      var r = cv.getBoundingClientRect();
-      var t = e.touches ? e.touches[0] : e;
-      return { x: (t.clientX - r.left) * (cv.width / r.width), y: (t.clientY - r.top) * (cv.height / r.height) };
-    }
-
-    function onDown(e) {
-      if (!state.quad) return;
-      var p = pos(e);
-      var best = -1, bd = 1e9;
-      state.quad.forEach(function (q, i) {
-        var d = Math.hypot(q.x - p.x, q.y - p.y);
-        if (d < bd) { bd = d; best = i; }
-      });
-      if (bd < 34) {
-        active = best;
-        cv.setPointerCapture && e.pointerId !== undefined && cv.setPointerCapture(e.pointerId);
-        e.preventDefault();
-      }
-    }
-
-    function onMove(e) {
-      if (active < 0) return;
-      var p = pos(e);
-      state.quad[active] = { x: Math.max(0, Math.min(state.src.width, p.x)), y: Math.max(0, Math.min(state.src.height, p.y)) };
-      drawCalib();
-      e.preventDefault();
-    }
-
-    function onUp() { active = -1; }
-
-    cv.addEventListener('pointerdown', onDown);
-    cv.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    cv.addEventListener('touchstart', function (e) { onDown(e); }, { passive: false });
-    cv.addEventListener('touchmove', function (e) { onMove(e); }, { passive: false });
-    cv.addEventListener('touchend', onUp);
+    // 四角坐标在源图像素空间，指针在显示空间：换算与命中统一交给 core/handles.js
+    QRQ.Handles.bind(cv, {
+      size: function () {
+        return { w: state.src ? state.src.width : cv.width, h: state.src ? state.src.height : cv.height };
+      },
+      points: function () { return state.quad || []; },
+      setPoint: function (i, p) { if (state.quad) state.quad[i] = p; },
+      onDrag: function () { drawCalib(); }
+    });
   }
 
   /* ------------------------------ 测评 ------------------------------ */

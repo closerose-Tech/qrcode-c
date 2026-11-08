@@ -1,8 +1,7 @@
 /*!
- * QRQ · 盒条二维码合规测评
- * 依据《盒条二维码技术要求》：
+ * QRQ · 盒条二维码合规测评（依据 GB/T 33993-2017 与行业盒条二维码技术要求）
  *   码制 QR（ISO/IEC 18004）、版本 3（29×29）、纠错 M、编码 59 位、字母数字字符集
- *   表2 喷印尺寸：盒-细支 ≥7×7；盒-标准/中支 8×8~10×10；条 10×10~12×12；打印质量 ≥500DPI
+ *   喷印尺寸：盒-细支 ≥7×7；盒-标准/中支 8×8~10×10；条 10×10~12×12；打印质量 ≥500DPI
  *   底框宽度 ≤2mm；套印位置偏差 ≤0.8mm；符号质量按 GB/T 33993-2017
  */
 (function (root, factory) {
@@ -19,7 +18,7 @@
   function r2(v) { return Math.round(v * 100) / 100; }
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
-  /* 表2：包装类型 × 支型 */
+  /* 包装类型 × 支型 */
   var PACK = {
     'box-fine': { key: 'box-fine', type: 'box', typeText: '盒烟', spec: '细支', min: 7, max: null, label: '盒烟 · 细支' },
     'box-std': { key: 'box-std', type: 'box', typeText: '盒烟', spec: '标准支/中支', min: 8, max: 10, label: '盒烟 · 标准支 / 中支' },
@@ -335,17 +334,17 @@
       value: sideMm === null ? null : r1(sideMm), unit: 'mm',
       dev: sideMm === null ? null : r1(rangeDev(sideMm, pack.min, pack.max)),
       status: sideMm === null ? 'na' : rangeStatus(sideMm, pack.min, pack.max, 0.15),
-      desc: pack.label + '：表2 规定 ' + rangeText(pack.min, pack.max, 'mm') + '。'
+      desc: pack.label + '：要求 ' + rangeText(pack.min, pack.max, 'mm') + '。'
     }));
 
-    // 表2 的 ≥500DPI 是喷印点密度，成品上无法直接还原喷头点数；
+    // ≥500DPI 是喷印点密度，成品上无法直接还原喷头点数；
     // 折算为可量测的模块宽：500DPI 点距 0.0508mm，模块至少占 2 点 ≈ 0.10mm。
     var dots = moduleMm ? moduleMm / 0.0508 : null;
     g3.items.push(item({
       key: 's_dpi', name: '模块宽（打印精度）', std: '≥0.10', value: moduleMm === null ? null : r2(moduleMm), unit: 'mm',
       dev: moduleMm === null ? null : r2(moduleMm - 0.10),
       status: moduleMm === null ? 'na' : (moduleMm >= 0.10 ? 'ok' : (moduleMm >= 0.09 ? 'warn' : 'fail')),
-      desc: '表2 要求打印质量 ≥500DPI（点距 0.0508mm），模块宽由边长 ÷ 29 反算' +
+      desc: '要求打印质量 ≥500DPI（点距 0.0508mm），模块宽由边长 ÷ 29 反算' +
         (dots ? '，约合 ' + r1(dots) + ' 点。' : '。')
     }));
 
@@ -455,7 +454,7 @@
 
     return {
       ok: true,
-      standard: '盒条二维码技术要求',
+      standard: 'GB/T 33993-2017',
       pack: pack,
       ppm: ppm || null,
       calibrated: !!ppm,
@@ -481,11 +480,11 @@
     var advice = [];
 
     if (!counts.fail && !counts.warn) {
-      lines.push('受检项全部符合《盒条二维码技术要求》，' + pack.label + '二维码可用于在线生产。');
+      lines.push('受检项全部符合 GB/T 33993-2017 要求，' + pack.label + '二维码可用于在线生产。');
     } else if (!counts.fail) {
       lines.push('受检项无超差，' + counts.warn + ' 项处于临界，建议复核后放行。');
     } else {
-      lines.push('检出 ' + counts.fail + ' 项超差' + (counts.warn ? '、' + counts.warn + ' 项临界' : '') + '，不满足《盒条二维码技术要求》。');
+      lines.push('检出 ' + counts.fail + ' 项超差' + (counts.warn ? '、' + counts.warn + ' 项临界' : '') + '，不满足 GB/T 33993-2017 要求。');
     }
 
     if (hit) {
@@ -507,7 +506,7 @@
     if (byKey.s_dpi && byKey.s_dpi.status === 'fail') advice.push('模块宽不足：提高喷印 DPI 或增大二维码尺寸，使模块边宽不小于 0.10mm（约 2 点 @500DPI）。');
     if (byKey.s_frame && byKey.s_frame.status === 'fail') advice.push('底框宽度超限：核对底框模板，控制在 2mm 以内，避免占用相邻版面。');
     if (byKey.s_offset && byKey.s_offset.status === 'fail') advice.push('套印偏移超限：调整喷头对位与走纸稳定性，使二维码居于底框正中（≤0.8mm）。');
-    if (byKey.s_size && byKey.s_size.status === 'fail') advice.push('喷印尺寸不在表2 范围内：按' + pack.label + ' 的 ' + rangeText(pack.min, pack.max, 'mm') + ' 调整版面。');
+    if (byKey.s_size && byKey.s_size.status === 'fail') advice.push('喷印尺寸不在规定范围内：按' + pack.label + ' 的 ' + rangeText(pack.min, pack.max, 'mm') + ' 调整版面。');
     if (byKey.sym_ecl && byKey.sym_ecl.status === 'fail') advice.push('纠错级别不符：赋码时固定使用 M 级纠错。');
     if (byKey.sym_ver && byKey.sym_ver.status === 'fail') advice.push('版本不符：行业卷烟二维码固定使用版本 3（29×29）。');
     if (byKey.code_len && byKey.code_len.status === 'fail') advice.push('编码长度不符：核对赋码系统的 59 位编码规则。');

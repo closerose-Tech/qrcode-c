@@ -1,6 +1,6 @@
 /*!
  * QRQ · 件烟标签合规测评
- * 依据《卷烟件烟标签技术规范》：表1 规格名称排版、表2 各区域尺寸、表3 字体规格及排布
+ * 依据《卷烟件烟标签技术规范》：规格名称排版、各区域尺寸、字体规格及排布
  * 以 105mm×75mm 标签为基准，通过透视校正后的比例换算量测各区域位置、尺寸与字号
  */
 (function (root, factory) {
@@ -20,10 +20,10 @@
   'use strict';
 
   var PT = 0.3528;                 // 1pt = 0.3528mm
-  var W = 105, H = 75;             // 标签基准尺寸（表2 前置条件）
+  var W = 105, H = 75;             // 标签基准尺寸（区域尺寸的前置条件）
   var PPM = 10;                    // 校正后每毫米像素数
 
-  /* 表2 + 图4 推导的区域模型（mm），原点为标签左上角 */
+  /* 按标准区域表与示意图推导的区域模型（mm），原点为标签左上角 */
   var REGIONS = {
     logo:   { key: 'logo',   name: '标志区域',   x: 6,    y: 6,    w: 50, h: 12 },
     sep:    { key: 'sep',    name: '间隔线',     x: 6,    y: 18.4, w: 50, h: 0.2 },
@@ -35,7 +35,7 @@
     info:   { key: 'info',   name: '生产信息',   x: 61,   y: 59,   w: 38, h: 10 }
   };
 
-  /* 表3 字体规格 */
+  /* 字体规格 */
   var FONTS = {
     name1: { label: '规格名称 首行', pt: 24, kind: 'cjk' },
     name2: { label: '规格名称 次行', pt: 20, alt: 14, kind: 'cjk' },
@@ -48,7 +48,7 @@
     cjkInk: 0.95, digitInk: 0.72, cjkAdvance: 1.0, digitAdvance: 0.55
   };
 
-  /* 表1 规格名称排版：≤6 汉字单行；>6 汉字双行（品牌首行，括号及规格次行） */
+  /* 规格名称排版：≤6 汉字单行；>6 汉字双行（品牌首行，括号及规格次行） */
   var TABLE1 = [
     { chars: '≤6 个汉字', layout: '单行居中', note: '品牌与规格同行' },
     { chars: '＞6 个汉字', layout: '双行居中', note: '品牌首行，括号及规格次行' }
@@ -706,8 +706,8 @@
     groups.push(g3);
 
     /* ---------------- 规格名称排版与字号 ---------------- */
-    var g4 = { key: 'name', name: '规格名称（表1 / 表3）', items: [] };
-    // 表3 最小字号 14pt（字面高 ≈4.9mm），低于 2.4mm 的行带属间隔线/边框残留，剔除以免污染首行读数
+    var g4 = { key: 'name', name: '规格名称排版与字号', items: [] };
+    // 次行最小字号 14pt（字面高 ≈4.9mm），低于 2.4mm 的行带属间隔线/边框残留，剔除以免污染首行读数
     var nameBands = M.bands(5, 19.6, 57, 36.6, 1.4, 3).filter(function (b) { return b.h >= 2.4; });
     if (nameBands.length) {
       var lines = nameBands.length;
@@ -722,7 +722,7 @@
       g4.items.push(item({
         key: 'name_lines', name: '排版方式', std: '单行或双行居中', value: lines + ' 行', unit: '',
         dev: null, status: lines <= 2 ? 'ok' : 'fail',
-        desc: lines === 1 ? '单行居中（适用于 ≤6 个汉字）' : (lines === 2 ? '双行居中（适用于 ＞6 个汉字）' : '检测到 ' + lines + ' 行，超出表1 规定')
+        desc: lines === 1 ? '单行居中（适用于 ≤6 个汉字）' : (lines === 2 ? '双行居中（适用于 ＞6 个汉字）' : '检测到 ' + lines + ' 行，超出规定的单行/双行排版')
       }));
       g4.items.push(item({
         key: 'name_f1', name: '首行字号', std: 24, value: r1(first.pt), unit: 'pt',
@@ -738,7 +738,7 @@
           key: 'name_f2', name: '次行字号', std: pick, value: r1(second.pt), unit: 'pt',
           dev: r1(dev),
           status: judge(dev, 2.5, 4),
-          desc: '表3 允许 20pt（次行 ≤7 汉字）或 14pt（次行 ＞7 汉字）'
+          desc: '标准允许 20pt（次行 ≤7 汉字）或 14pt（次行 ＞7 汉字）'
         }));
       }
       var centerDev = first.center;
@@ -765,7 +765,7 @@
     groups.push(g4);
 
     /* ---------------- 数字编码区 ---------------- */
-    var g5 = { key: 'num', name: '数字编码区（表3）', items: [] };
+    var g5 = { key: 'num', name: '数字编码区', items: [] };
     var numTop = qr.box ? Math.max(43, qr.box.y1 + 1.2) : 43.5;
     var numBands = M.bands(60, numTop, 99.5, 71, 2.2, 3);
     var rows = assignNumericRows(numBands);
@@ -1058,7 +1058,7 @@
       consist: '一维码与二维码中的规格代码不一致，核对赋码数据源。',
       serial18: '18 位唯一流水码位数不符。'
     };
-    return map[it.key] || (it.name + '不符合标准，请对照表2 / 表3 复核。');
+    return map[it.key] || (it.name + '不符合标准，请对照区域尺寸与字体规格复核。');
   }
 
   return {
