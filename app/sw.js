@@ -1,5 +1,5 @@
 /* 离线缓存：首屏与算法脚本全部本地化，安装后可完全离线运行 */
-var CACHE = 'qrq-v5';
+var CACHE = 'qrq-v6';
 var ASSETS = [
   './',
   './index.html',

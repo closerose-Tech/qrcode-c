@@ -589,8 +589,7 @@ body {
 .vtab.active { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(18, 22, 26, .1); }
 .vtab.active::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); flex: none; }
 
-.hero.compact { padding: 16px 2px 13px; }
-.hero.compact h1 { font-size: 21px; }
+/* 三页页首统一：同一 .hero 规格（h1 25px / 内边距相同），不设页别字号差异 */
 
 #labelResult { scroll-margin-top: 58px; }
 

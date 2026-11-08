@@ -17,7 +17,7 @@ https://github.com/closerose-Tech/qrcode-c
 | 用途 | 地址 / 方式 |
 | --- | --- |
 | 网页版（手机可直接用） | https://closerose-tech.github.io/qrcode-c/ |
-| 安卓安装包（直链） | [qr-quality-verifier-1.0.4.apk](https://github.com/closerose-Tech/qrcode-c/releases/download/v1.0.4/qr-quality-verifier-1.0.4.apk) |
+| 安卓安装包（直链） | [qr-quality-verifier-1.0.5.apk](https://github.com/closerose-Tech/qrcode-c/releases/download/v1.0.5/qr-quality-verifier-1.0.5.apk) |
 | 每次构建的临时产物 | Actions → **Android APK** → 对应运行 → Artifacts |
 | 本地提交 | `git push`（凭据由 Git Credential Manager 保存） |
 
