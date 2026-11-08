@@ -17,7 +17,7 @@ https://github.com/closerose-Tech/qrcode-c
 | 用途 | 地址 / 方式 |
 | --- | --- |
 | 网页版（手机可直接用） | https://closerose-tech.github.io/qrcode-c/ |
-| 安卓安装包（直链） | [qr-quality-verifier-1.0.5.apk](https://github.com/closerose-Tech/qrcode-c/releases/download/v1.0.5/qr-quality-verifier-1.0.5.apk) |
+| 安卓安装包（直链） | [qr-quality-verifier-1.1.0.apk](https://github.com/closerose-Tech/qrcode-c/releases/download/v1.1.0/qr-quality-verifier-1.1.0.apk) |
 | 每次构建的临时产物 | Actions → **Android APK** → 对应运行 → Artifacts |
 | 本地提交 | `git push`（凭据由 Git Credential Manager 保存） |
 
@@ -43,6 +43,7 @@ app/                      可直接部署的网页应用（PWA，可离线）
     pinggui.js            盒条品规库：盒码/条码匹配、本机持久化
     label.js              件烟标签量测引擎：四角检出、透视校正、区域/字号量测、合规判定
     handles.js            校准手柄拖动（源像素↔显示像素换算、命中判定、整框平移）
+    qrread.js             难读码稳健识读：多预处理、定位图案自检、透视校正、镜像翻转识读
   assets/js/boxui.js      盒条页交互层：四角与基准线校准、品规导入、指标清单与结论渲染
   assets/js/labelui.js    标签页交互层：四角校准画布、测评流程、指标清单与结论渲染
   assets/js/vendor/       jsQR 1.4（识读定位）、qrcode-generator（示例码/结构表）

@@ -507,6 +507,7 @@
     html += '<div class="panel">' +
       '<div class="preview-head"><div><div class="section-label">Assessment</div><div class="section-title">测评结论</div></div></div>' +
       '<div class="verdict-headline">' + esc(r.verdict.headline) + '</div>' +
+      mirrorBlock(r.mirror) +
       '<ul class="verdict-list">' + r.verdict.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' +
       '<div class="sub-h">改善建议</div>' +
       '<ul class="verdict-list advice">' + r.verdict.advice.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' +
@@ -534,6 +535,32 @@
     drawPreview();
     bindResultEvents();
     host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* 镜像码判断项 */
+  function mirrorBlock(m) {
+    var state = m ? m.state : 'unknown';
+    var text, cls, desc;
+    if (state === 'mirrored') {
+      text = '是';
+      cls = 'bad';
+      desc = '符号为水平镜像印版：定位图案呈 TL / TR / BR 布局，标准方向的识读设备无法读出；本次已翻转图像完成识读，评级仅代表印刷质量，符号本身不可直接投产。';
+    } else if (state === 'normal') {
+      text = '否';
+      cls = 'ok';
+      desc = '三个定位图案位于左上 / 右上 / 左下，符号方向正常，与制版方向一致。';
+    } else {
+      text = '无法判定';
+      cls = 'na';
+      desc = '定位图案受损或被遮挡，无法据布局判定方向；如需结论请重新拍摄或改善静区。';
+    }
+    var s = m && m.scores;
+    var ev = s ? '定位图案匹配度 TL ' + s.tl + ' / TR ' + s.tr + ' / BL ' + s.bl + ' / BR ' + s.br : '';
+    return '<div class="check-row ' + cls + '">' +
+      '<span class="check-k">镜像码</span>' +
+      '<span class="check-v">' + text + '</span>' +
+      '</div>' +
+      '<div class="check-desc">' + esc(desc) + (ev ? '<span class="check-ev">' + esc(ev) + '</span>' : '') + '</div>';
   }
 
   function verdictShort(v) {
@@ -681,6 +708,10 @@
     lines.push('标准：' + r.standardName);
     lines.push('综合等级：' + r.grade.value.toFixed(1) + ' / ' + r.grade.letter + '（' + r.grade.text + '）');
     lines.push('版本：V' + r.decode.version + '　纠错：' + r.decode.ecl + '　掩模：' + r.decode.mask);
+    if (r.mirror) {
+      lines.push('镜像码：' + (r.mirror.state === 'mirrored' ? '是（水平镜像印版，需翻转图像才能识读）'
+        : (r.mirror.state === 'normal' ? '否（方向正常）' : '无法判定')));
+    }
     r.metrics.forEach(function (m) {
       lines.push('· ' + m.name + '：' + (m.value === null ? '—' : fmt(m.value, 1)) + m.unit + '　' + (m.grade === null ? 'N/A' : fmt(m.grade, 1) + '/' + letterOf(m.grade)));
     });

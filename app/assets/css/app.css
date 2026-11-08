@@ -461,6 +461,27 @@ body {
 }
 .verdict-list.advice li::before { background: var(--gold); }
 
+/* 判断项：镜像码 */
+.check-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 13px; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: #fafbfc;
+}
+.check-row .check-k { font-size: 12px; color: var(--ink-2); letter-spacing: .02em; }
+.check-row .check-v {
+  font-size: 12.5px; font-weight: 650; padding: 2px 9px; border-radius: 7px;
+  background: #eef0f2; color: var(--muted);
+}
+.check-row.ok { border-color: #cfe7dc; background: #f5fbf8; }
+.check-row.ok .check-v { background: rgba(18, 121, 91, .1); color: var(--g4); }
+.check-row.bad { border-color: #f0d3cd; background: #fdf6f5; }
+.check-row.bad .check-v { background: rgba(180, 35, 24, .1); color: var(--g0); }
+.check-row.na .check-v { background: #eef0f2; color: var(--muted); }
+.check-desc {
+  margin-top: 7px; font-size: 11.5px; line-height: 1.6; color: var(--muted);
+}
+.check-ev { display: block; margin-top: 3px; font-family: var(--mono); font-size: 10px; color: var(--faint); letter-spacing: .02em; }
+
 .warn-box {
   margin-top: 12px; padding: 10px 12px; border-radius: 10px;
   background: #fff8f0; border: 1px solid #f3ddc6;
@@ -901,6 +922,7 @@ body {
 .spec-type.box { background: rgba(168, 121, 27, .14); color: var(--gold-2); }
 .spec-type.bar { background: rgba(18, 121, 91, .12); color: var(--g4); }
 .spec-type.none { background: rgba(125, 134, 143, .13); color: var(--muted); }
+.spec-type.spec { background: rgba(63, 122, 151, .13); color: #33667f; }
 .spec-name {
   font-size: 15px; font-weight: 650; letter-spacing: .01em; color: var(--ink);
   line-height: 1.3; min-width: 0;

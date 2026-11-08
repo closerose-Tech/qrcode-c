@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5f7">
-<meta name="app-version" content="1.0.5">
+<meta name="app-version" content="1.1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>二维码印刷质量测评 · 中烟信息业保中心</title>
@@ -285,10 +285,10 @@
         </div>
         <div class="field-row">
           <label for="libQuery">手动查询</label>
-          <input id="libQuery" type="text" inputmode="numeric" placeholder="盒码 13 位 / 条码 12 位">
+          <input id="libQuery" type="text" inputmode="numeric" placeholder="盒码 13 位 / 条码 12 位 / 规格后 5 位">
           <button class="mini-btn" id="btnLibQuery">查询</button>
         </div>
-        <div class="calib-hint">支持 .xlsx 与 .csv（列：盒码 / 品规名称 / 条码）。数据仅保存在本机浏览器，不上传、不随安装包发布。</div>
+        <div class="calib-hint">支持 .xlsx 与 .csv（列：盒码 / 品规名称 / 条码 / 规格代码）。规格代码共 13 位，与二维码第 31–35 位对应的正是其第 8–12 位。数据仅保存在本机浏览器，不上传、不随安装包发布。</div>
         <div id="libResult" class="lib-result" hidden></div>
         <input type="file" id="libFile" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </section>
@@ -343,7 +343,7 @@
 
   <footer class="foot">
     <div>结果基于非标定手机成像，等级为参照 ISO/IEC 15415 / 29158 的评估值，不可替代校准型条码验证器。</div>
-    <div class="foot-meta">中烟信息业保中心 · 质量测评工具 <span id="appVer">v1.0.5</span></div>
+    <div class="foot-meta">中烟信息业保中心 · 质量测评工具 <span id="appVer">v1.1.0</span></div>
     <div class="foot-dev">开发者：陈宠</div>
   </footer>
 </div>
@@ -384,6 +384,8 @@
       <p>面向激光蚀刻、针点压印、电化学打标等直接零件标识：以反射率分布统计量作为阈值，计算单元对比度 CC（A≥30%）、单元调制度 CM、最小反射率 MR（A≥20%），并以分布性损伤 DDG 反映多点分散损伤；其余参数与 15415 共用。同一图像用 29158 评估通常高于 15415。</p>
       <h3>ISO/IEC 18004（QR Code）</h3>
       <p>按符号结构生成功能图形期望图案，读取格式信息（BCH 15,5）、掩模号与纠错块结构；按码字逐个执行 Reed-Solomon 伴随式计算与 Berlekamp-Massey 求解，得到实际被纠正的码字数——UEC 为本机实测值而非估算。</p>
+      <h3>难读符号与镜像码</h3>
+      <p>常规识读未命中时，依次尝试灰度拉伸、Otsu 与自适应二值、放大、定位图案自检与透视校正后重读；盒条页可直接用手动四角作为校正依据，因此斜面、反光、低对比的符号也能给出分级。符号方向按三个定位图案的布局判定：左上 / 右上 / 左下为正向，左上 / 右上 / 右下为水平镜像（镜像印版标准设备读不出），结论中单列“镜像码”判断项。</p>
       <h3>ISO/IEC 15416 与 ISO/IEC 16022 的覆盖</h3>
       <p>一维条码（15416：边缘判定、最小反射率、最小边缘对比度、缺陷、可译码性）与 Data Matrix（16022：L 型定位、时钟轨、纠错余量）的质量分级与 15415 同源：反射率、采样孔径、静区与纠错余量的量测原则在本工具中已按 2D 符号实现。两者的专用解码与分级流程将在后续版本开放，当前版本对 QR Code 提供完整分级。</p>
       <h3>件烟标签合规测评（卷烟件烟标签技术规范）</h3>
@@ -406,7 +408,7 @@
         <li><b>套印精度</b>：二维码应居于空白区域正中，位置偏差 ≤0.8mm；条烟喷印于端面（C 面），垂直方向严格居中。</li>
         <li><b>符号质量</b>：按 GB/T 33993-2017《商品二维码》引用 ISO/IEC 15415 方法分级，综合等级不低于 1.5。</li>
         <li><b>量测方法</b>：jsQR 定位二维码四角 → 由四边形边长得到像素尺度 → 以画面中标注的已知长度为基准换算 px/mm → 量测边长、模块宽、底框与居中偏差。未标注基准时只判符号质量与编码合规，尺寸类指标标为“待标定”，不给出臆测值。</li>
-        <li><b>盒码 / 条码</b>：导入《盒条品规对应表》（盒码 13 位 / 品规名称 / 条码 12 位）后，用二维码内容与表中记录匹配，判定该码属于盒码还是条码并显示品规名称；支持手动输入盒码反查。</li>
+        <li><b>盒码 / 条码</b>：导入《盒条品规对应表》（盒码 13 位 / 品规名称 / 条码 12 位 / 规格代码 13 位）后，先用全码匹配判定盒码或条码；全码未能命中时，改取二维码数据第 31–35 位（5 位）与 13 位规格代码第 8–12 位比对，仍可显示对应品规名称。支持手动输入盒码或规格代码后 5 位反查。</li>
       </ul>
       <h3>边界</h3>
       <p>手机成像缺少标定光源与标准孔径，绝对反射率不可溯源；本工具给出的是“可复现的相对评估”，适用于来料比对、批次趋势与制码工艺排查。正式验收请使用具备 45°/0° 照明与标定白板的条码验证器。</p>
@@ -438,6 +440,7 @@
 <script src="assets/js/core/img.js"></script>
 <script src="assets/js/core/rsblocks.js"></script>
 <script src="assets/js/core/qrstruct.js"></script>
+<script src="assets/js/core/qrread.js"></script>
 <script src="assets/js/core/qrgrade.js"></script>
 <script src="assets/js/core/xlsx.js"></script>
 <script src="assets/js/core/pinggui.js"></script>

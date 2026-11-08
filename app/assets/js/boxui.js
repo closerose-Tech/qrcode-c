@@ -115,14 +115,23 @@
 
     var res = null;
     try { res = jsQR(data.data, canvas.width, canvas.height, { inversionAttempts: 'attemptBoth' }); } catch (e) { res = null; }
-    if (!res || !res.location) return null;
-    var L = res.location;
-    if (!L.topLeftCorner || !L.topRightCorner || !L.bottomRightCorner || !L.bottomLeftCorner) return null;
-    var pts = [L.topLeftCorner, L.topRightCorner, L.bottomRightCorner, L.bottomLeftCorner].map(function (p) {
-      return { x: p.x, y: p.y };
-    });
-    // jsQR 的角点是模块中心，向外扩半模块更贴合静区外沿；此处保持模块边界
-    return pts;
+    if (res && res.location) {
+      var L = res.location;
+      if (L.topLeftCorner && L.topRightCorner && L.bottomRightCorner && L.bottomLeftCorner) {
+        var pts0 = [L.topLeftCorner, L.topRightCorner, L.bottomRightCorner, L.bottomLeftCorner].map(function (p) {
+          return { x: p.x, y: p.y };
+        });
+        return pts0;
+      }
+    }
+    // 常规定位失败：改用定位图案自检（难读码 / 强透视 / 异色底）
+    if (QRQ.QrRead && QRQ.QrRead.findQuad) {
+      try {
+        var q = QRQ.QrRead.findQuad(state.gray || QRQ.grayFromRGBA(data.data, canvas.width, canvas.height), canvas.width, canvas.height);
+        if (q) return q;
+      } catch (e) { /* 忽略，交由用户手动拖动 */ }
+    }
+    return null;
   }
 
   function defaultQuad(c) {
@@ -301,7 +310,7 @@
       var jsQR = resolveJsQR();
       r0 = QRQ.analyze(
         { data: state.rgba, width: state.src.width, height: state.src.height },
-        { jsQR: jsQR, standard: '15415', maxSide: MAX_SIDE }
+        { jsQR: jsQR, standard: '15415', maxSide: MAX_SIDE, quad: orderQuad(state.quad) }
       );
     } catch (e) {
       console.error(e);
@@ -398,19 +407,28 @@
         '</span>' +
       '</div>' +
       '<div class="spec-main">' +
-        '<span class="spec-type ' + (hit ? (hit.type === 'box' ? 'box' : 'bar') : 'none') + '">' +
+        '<span class="spec-type ' + (hit ? (hit.type === 'box' ? 'box' : (hit.type === 'bar' ? 'bar' : 'spec')) : 'none') + '">' +
           esc(hit ? hit.typeText : '未匹配') + '</span>' +
         '<span class="spec-name">' + esc(hit && hit.name ? hit.name : '未在品规对应表中找到该码') + '</span>' +
       '</div>' +
       '<div class="seg-table">' +
         '<div class="seg-row"><span class="seg-name">' + esc(hit ? hit.typeText : '盒码 / 条码') + '</span>' +
-          '<span class="seg-val mono">' + esc(hit ? hit.code : '—') + '</span></div>' +
+          '<span class="seg-val mono">' + esc(hit && hit.code ? hit.code : '—') + '</span></div>' +
         '<div class="seg-row"><span class="seg-name">' + esc(hit ? hit.pairedTypeText : '配对码') + '</span>' +
           '<span class="seg-val mono">' + esc(hit && hit.paired ? hit.paired : '—') + '</span></div>' +
+        '<div class="seg-row"><span class="seg-name">规格代码（13 位）</span>' +
+          '<span class="seg-val mono">' + esc(hit && hit.spec ? hit.spec : '—') + '</span></div>' +
+        '<div class="seg-row"><span class="seg-name">二维码第 31–35 位</span>' +
+          '<span class="seg-val mono">' + esc(hit && (hit.payloadKey || hit.key5) ? (hit.payloadKey || hit.key5) : '—') + '</span></div>' +
         '<div class="seg-row"><span class="seg-name">包装类型</span>' +
           '<span class="seg-val">' + esc(r.pack.label) + '</span></div>' +
       '</div>' +
-      (hit ? '' : '<div class="note-line">在下方「品规对应表」导入正式表格后，可直接判定盒码 / 条码并显示品规名称；也可用盒码手动查询。</div>') +
+      (hit
+        ? (hit.via === 'spec5'
+          ? '<div class="note-line">按二维码数据第 31–35 位（' + esc(hit.key5) + '）匹配到 13 位规格代码第 8–12 位，对应品规：' + esc(hit.name || '—') +
+            (hit.candidates > 1 ? '（同键 ' + hit.candidates + ' 条，取首条）' : '') + '。</div>'
+          : '')
+        : '<div class="note-line">在下方「品规对应表」导入正式表格后，可直接判定盒码 / 条码并显示品规名称；也可用盒码或规格代码后 5 位手动查询。</div>') +
     '</div>';
 
     /* 叠加预览 */
@@ -669,10 +687,14 @@
     if (!box) return;
     if (!hit) { box.hidden = true; box.innerHTML = ''; return; }
     box.hidden = false;
+    var cls = hit.type === 'box' ? 'box' : (hit.type === 'bar' ? 'bar' : 'spec');
+    var line = hit.code
+      ? ('盒码 ' + esc(hit.code) + (hit.paired ? ' · 配对' + esc(hit.pairedTypeText) + ' ' + esc(hit.paired) : ''))
+      : ('规格代码 ' + esc(hit.spec || '—') + ' · 第 8–12 位 ' + esc(hit.key5 || '—'));
     box.innerHTML = '<div class="spec-main small">' +
-      '<span class="spec-type ' + (hit.type === 'box' ? 'box' : 'bar') + '">' + esc(hit.typeText) + '</span>' +
+      '<span class="spec-type ' + cls + '">' + esc(hit.typeText) + '</span>' +
       '<span class="spec-name">' + esc(hit.name || '（无名称）') + '</span></div>' +
-      '<div class="note-line">' + esc(hit.code) + (hit.paired ? ' · 配对' + esc(hit.pairedTypeText) + ' ' + esc(hit.paired) : '') + '</div>';
+      '<div class="note-line">' + line + (hit.candidates > 1 ? ' · 同键 ' + hit.candidates + ' 条，取首条' : '') + '</div>';
   }
 
   /* ------------------------------ 示例 ------------------------------ */

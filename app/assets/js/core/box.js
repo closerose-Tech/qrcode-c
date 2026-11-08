@@ -412,7 +412,9 @@
       value: hit ? hit.typeText : (text ? '未匹配' : null),
       dev: null,
       status: !text ? 'na' : (hit ? 'ok' : 'warn'),
-      desc: hit ? ('二维码内容命中对应表中的' + hit.typeText + '记录。')
+      desc: hit ? (hit.via === 'spec5'
+        ? ('按二维码第 31–35 位（' + hit.key5 + '）匹配到规格代码第 8–12 位，品类见「码属与品规」。')
+        : ('二维码内容命中对应表中的' + hit.typeText + '记录。'))
         : (pkg && pkg.source === 'sample' ? '当前为演示品规库，导入《盒条品规对应表》后可自动判别。' : '未在品规库中匹配到盒码或条码。')
     }));
 
@@ -420,7 +422,9 @@
       key: 'd_name', name: '品规名称', std: '—',
       value: hit ? hit.name : null, dev: null,
       status: hit && hit.name ? 'ok' : 'na',
-      desc: hit ? ('对应' + hit.typeText + ' ' + hit.code + (hit.paired ? '，配对' + hit.pairedTypeText + ' ' + hit.paired : '')) : ''
+      desc: hit ? (hit.via === 'spec5'
+        ? ('规格代码 ' + (hit.spec || '—') + '（第 8–12 位 ' + hit.key5 + '）')
+        : ('对应' + hit.typeText + ' ' + hit.code + (hit.paired ? '，配对' + hit.pairedTypeText + ' ' + hit.paired : ''))) : ''
     }));
 
     var pairOk = null;
@@ -452,6 +456,12 @@
 
     var verdict = buildVerdict(status, counts, groups, pack, hit, sideMm, moduleMm, ppm);
 
+    var mirror = (r0 && r0.mirror) ? r0.mirror : null;
+    if (mirror && mirror.detected) {
+      notes.push('检出镜像码：符号为水平镜像印版，已翻转识读；标准识读设备按正向扫描读不出。');
+      verdict.details.unshift('镜像码：是。定位图案呈 TL/TR/BR 布局，符号方向与制版方向相反。');
+    }
+
     return {
       ok: true,
       standard: 'GB/T 33993-2017',
@@ -468,6 +478,7 @@
       },
       hit: hit,
       pinggui: pkg,
+      mirror: mirror,
       geo: geo,
       notes: notes,
       verdict: verdict,

@@ -345,6 +345,50 @@
     return Math.max(0, sum2 / count - mean * mean);
   }
 
+  /* 定位图案匹配度：7×7 期望图形（外框 + 白环 + 3×3 实心） */
+  function finderScore(bin, N, r0, c0) {
+    var hit = 0, total = 0;
+    for (var r = 0; r < 7; r++) {
+      for (var c = 0; c < 7; c++) {
+        var want;
+        if (r === 0 || r === 6 || c === 0 || c === 6) want = 1;
+        else if (r === 1 || r === 5 || c === 1 || c === 5) want = 0;
+        else want = 1;
+        total++;
+        if ((bin[(r0 + r) * N + (c0 + c)] ? 1 : 0) === want) hit++;
+      }
+    }
+    return total ? hit / total : 0;
+  }
+
+  /* 判定符号方向：标准 QR 的定位图案在 TL / TR / BL；镜像后变成 TL / TR / BR */
+  function finderLayout(bin, N) {
+    var tl = finderScore(bin, N, 0, 0);
+    var tr = finderScore(bin, N, 0, N - 7);
+    var bl = finderScore(bin, N, N - 7, 0);
+    var br = finderScore(bin, N, N - 7, N - 7);
+    var std = Math.min(tl, tr, bl);
+    var mir = Math.min(tl, tr, br);
+    var state = 'unknown';
+    if (std >= 0.82 && br <= std - 0.18) state = 'normal';
+    else if (mir >= 0.82 && bl <= mir - 0.18) state = 'mirrored';
+    return { state: state, tl: tl, tr: tr, bl: bl, br: br, standard: std, mirroredScore: mir };
+  }
+
+  /* 快速采样一次，仅用于判定符号方向（不做码字纠错） */
+  function quickLayout(gray, w, h, quad, N, version) {
+    try {
+      var QS = Q();
+      var fit = fitGrid(gray, w, h, quad, N, version);
+      var sg = sampleGrid(gray, w, h, quad, N, fit.fit, 3);
+      var stats = contrastStats(sg.means, fit.polarity);
+      var bin = binarize(sg.means, stats.gt, fit.polarity);
+      return finderLayout(bin, N);
+    } catch (e) {
+      return { state: 'unknown', standard: 0, mirroredScore: 0 };
+    }
+  }
+
   /* ============================ 主流程 ============================ */
   function analyze(imageData, options) {
     var t0 = Date.now();
@@ -381,6 +425,28 @@
       if (tmp) decoded = { result: tmp, gray: a.gray, w: a.w, h: a.h, tag: a.tag };
     }
 
+    /* 常规识读失败：走稳健识读（整图预处理 → 定位图案自检 → 透视校正 → 镜像） */
+    var forcedQuad = null, mirrored = false, readTag = null, readFrom = null;
+    if (!decoded) {
+      var RD = Q().QrRead;
+      if (RD && RD.decode) {
+        var manual = null;
+        if (opts.quad && opts.quad.length === 4) {
+          var k = scaled.width / imageData.width;      // 手动四角在原图坐标，换算到缩放空间
+          manual = opts.quad.map(function (p) { return { x: p.x * k, y: p.y * k }; });
+        }
+        var fr = null;
+        try { fr = RD.decode(gray, scaled.width, scaled.height, { jsQR: jsQR, quad: manual }); } catch (e) { fr = null; }
+        if (fr && fr.res) {
+          decoded = { result: fr.res, gray: gray, w: scaled.width, h: scaled.height, tag: fr.tag };
+          forcedQuad = fr.rect ? fr.quad : null;
+          mirrored = !!fr.mirrored;
+          readTag = fr.tag;
+          readFrom = fr.quadFrom || (fr.rect ? 'quad' : 'whole');
+        }
+      }
+    }
+
     if (!decoded) {
       return {
         ok: false,
@@ -400,8 +466,27 @@
     var res = decoded.result;
     var version = res.version || 1;
     var N = 17 + 4 * version;
-    var loc = res.location;
-    var quad = [loc.topLeftCorner, loc.topRightCorner, loc.bottomRightCorner, loc.bottomLeftCorner];
+    var quad;
+    if (forcedQuad && forcedQuad.length === 4) {
+      quad = forcedQuad.map(function (p) { return { x: p.x, y: p.y }; });
+      // 镜像符号：交换 TR / BL 使采样矩阵回到标准方向
+      if (mirrored) quad = [quad[0], quad[3], quad[2], quad[1]];
+    } else {
+      var loc = res.location;
+      quad = [loc.topLeftCorner, loc.topRightCorner, loc.bottomRightCorner, loc.bottomLeftCorner];
+    }
+
+    // 网格拟合前先确认符号方向：jsQR 对镜像符号也能给出角点，但角点顺序是镜像的，
+    // 直接采样会得到左右颠倒的矩阵（格式信息、定位图案全部读错）。
+    var preLayout = quickLayout(decoded.gray, decoded.w, decoded.h, quad, N, version);
+    if (preLayout.state !== 'normal') {
+      var quadM = [quad[0], quad[3], quad[2], quad[1]];
+      var altLayout = quickLayout(decoded.gray, decoded.w, decoded.h, quadM, N, version);
+      if (altLayout.state === 'normal' && altLayout.standard > preLayout.standard + 0.12) {
+        quad = quadM;
+        mirrored = true;
+      }
+    }
 
     // 网格拟合
     var fit = fitGrid(decoded.gray, decoded.w, decoded.h, quad, N, version);
@@ -415,6 +500,15 @@
     var fmt = fit.fmt || QS.readFormat(bin, N);
     var cw = QS.readCodewords(bin, N, fmt.mask, map.fn);
     var rs = QS.rsAnalyze(cw, version, fmt.ecl);
+
+    // 镜像判定：识读路径（翻转后读出）与定位图案布局双证据
+    var layout = finderLayout(bin, N);
+    var mirrorState = mirrored ? 'mirrored'
+      : (layout.state === 'mirrored' ? 'mirrored' : (layout.state === 'normal' ? 'normal' : 'unknown'));
+    if (mirrorState === 'mirrored') {
+      notes.push('检出镜像符号，采样矩阵已按标准方向还原后评级');
+    }
+    if (readFrom === 'detect') notes.push('常规识读未命中，已由定位图案自检并透视校正后读出');
 
     if (!fmt.valid) {
       warnings.push('格式信息读取置信度低（汉明距离 ' + fmt.dmin + '），纠错余量可能偏差');
@@ -675,6 +769,15 @@
         imageWidth: decoded.w,
         imageHeight: decoded.h
       },
+      mirror: {
+        state: mirrorState,
+        detected: mirrorState === 'mirrored',
+        layout: layout.state,
+        scores: { tl: round2(layout.tl), tr: round2(layout.tr), bl: round2(layout.bl), br: round2(layout.br) },
+        byFlipRead: !!mirrored,
+        readTag: readTag,
+        readFrom: readFrom
+      },
       heat: { mods: Array.prototype.slice.call(standard === '29158' ? cmods : mods), N: N },
       modules: { bin: Array.prototype.slice.call(bin), means: Array.prototype.slice.call(sg.means) },
       notes: notes,
@@ -682,6 +785,15 @@
       verdict: buildVerdict(gradeValue, metrics, warnings, standard),
       timingMs: Date.now() - t0
     };
+
+    /* 镜像码：结论与建议中单列判断项（不改变印刷质量参数的评级口径） */
+    if (mirrorState === 'mirrored') {
+      result.verdict.details.unshift('镜像码：是。符号为水平镜像印版（定位图案呈 TL/TR/BR 布局），标准方向的识读设备无法读出，需翻转图像才能识读。');
+      result.verdict.advice.unshift('核对制版文件与喷印方向设置，输出前用普通扫码枪做一次正向识读验证，避免镜像印版流入生产。');
+      if (result.grade.value >= 2.5) {
+        result.verdict.note = '印刷质量本身达标，但镜像方向导致符号不可用，须按 F 级处理。';
+      }
+    }
     return result;
   }
 
