@@ -1,7 +1,7 @@
 /*!
  * QRQ · 盒条二维码合规测评（依据 GB/T 33993-2017 与行业盒条二维码技术要求）
  *   码制 QR（ISO/IEC 18004）、版本 3（29×29）、纠错 M、编码 59 位、字母数字字符集
- *   盒 / 条归属：59 位编码第 29 位（属性码首位），1 = 盒码，2 = 条码
+ *   包装分类：59 位编码第 29 位，1 = 盒烟，2 = 条烟，3 = 件烟
  *   符号质量按 GB/T 33993-2017 分级；印刷尺寸与套印不在本页判定
  */
 (function (root, factory) {
@@ -17,10 +17,11 @@
   function r1(v) { return Math.round(v * 10) / 10; }
   function r2(v) { return Math.round(v * 100) / 100; }
 
-  /* 盒 / 条归属：二维码数据第 29 位（1 起），1 代表盒码，2 代表条码 */
+  /* 包装分类：二维码数据第 29 位（1 起），1 盒烟 / 2 条烟 / 3 件烟 */
   var KIND = {
-    '1': { code: '1', type: 'box', text: '盒码', label: '盒码（第 29 位 = 1）' },
-    '2': { code: '2', type: 'bar', text: '条码', label: '条码（第 29 位 = 2）' }
+    '1': { code: '1', type: 'box', text: '盒烟', label: '盒烟（第 29 位 = 1）' },
+    '2': { code: '2', type: 'bar', text: '条烟', label: '条烟（第 29 位 = 2）' },
+    '3': { code: '3', type: 'carton', text: '件烟', label: '件烟（第 29 位 = 3）' }
   };
 
   function kindFromPayload(text) {
@@ -29,16 +30,25 @@
     return KIND[s.charAt(28)] || null;
   }
 
-  /* 59 位编码结构：网络服务地址(15) + 分隔符 + 标识解析前缀(9) + 分隔符 + 实体分类码(2) + 属性码 + 流水码 */
+  /* 59 位编码结构：网络服务地址(15) + 分隔符 + 标识解析前缀(9) + 分隔符 + 实体分类码(2)
+   * + 包装分类(1) + 经营类型(1) + 规格代码(5) + 流水码(24) */
   var STRUCT = [
     { key: 'addr', name: '网络服务地址', from: 1, to: 15 },
     { key: 'sep1', name: '分隔符', from: 16, to: 16, sep: true },
     { key: 'prefix', name: '标识解析前缀', from: 17, to: 25 },
     { key: 'sep2', name: '分隔符', from: 26, to: 26, sep: true },
     { key: 'entity', name: '实体分类码', from: 27, to: 28 },
-    { key: 'attr', name: '属性码', from: 29, to: 41 },
-    { key: 'serial', name: '流水码', from: 42, to: 59 }
+    { key: 'pack', name: '包装分类', from: 29, to: 29 },
+    { key: 'biz', name: '经营类型', from: 30, to: 30 },
+    { key: 'spec', name: '规格代码', from: 31, to: 35 },
+    { key: 'serial', name: '流水码', from: 36, to: 59 }
   ];
+
+  /* 分段取值的含义映射 */
+  var SEG_LABEL = {
+    pack: { '1': '盒烟', '2': '条烟', '3': '件烟' },
+    biz: { '0': '国内内销', '1': '国内出口', '2': '国外进口', '3': '国外来牌内销', '4': '国外来牌出口' }
+  };
 
   var CHARSET = /^[0-9A-Za-z./:]+$/;
 
@@ -67,7 +77,12 @@
     var s = String(text || '');
     return STRUCT.map(function (d) {
       var seg = s.slice(d.from - 1, d.to);
-      return { key: d.key, name: d.name, from: d.from, to: d.to, value: seg, sep: !!d.sep, missing: !seg };
+      var lab = SEG_LABEL[d.key] && seg ? SEG_LABEL[d.key][seg] : null;
+      return {
+        key: d.key, name: d.name, from: d.from, to: d.to,
+        value: seg ? seg + (lab ? ' · ' + lab : '') : seg,
+        sep: !!d.sep, missing: !seg
+      };
     });
   }
 
@@ -143,7 +158,7 @@
     var struct = txtLen ? buildStruct(text) : null;
     var structOk = struct && !struct.some(function (s) { return s.missing; });
     g1.items.push(item({
-      key: 'code_struct', name: '编码结构', std: '地址+前缀+实体分类+属性码+流水码',
+      key: 'code_struct', name: '编码结构', std: '地址+前缀+实体分类+包装分类+经营类型+规格代码+流水码',
       value: !struct ? null : (structOk ? '完整' : '缺段'),
       dev: null, status: !struct ? 'na' : (structOk ? 'ok' : 'fail'),
       desc: structOk ? '各段均可定位。' : '按 59 位定长分段存在缺段，需核对赋码规则。'
@@ -205,16 +220,16 @@
     var kindText = kind ? kind.text : (hit && hit.type ? hit.typeText : null);
 
     g4.items.push(item({
-      key: 'd_type', name: '盒码 / 条码', std: '第29位 1/2',
+      key: 'd_type', name: '包装分类', std: '第29位 1/2/3',
       value: !text ? null : (kindText || '无法判定'),
       dev: null,
       status: !text ? 'na' : (kind ? 'ok' : (hit && hit.type ? 'warn' : 'fail')),
       naText: '未识读',
       desc: !text ? '未能识读二维码，无法读取第 29 位。'
         : (kind
-          ? ('二维码数据第 29 位为「' + kind.code + '」，' + (kind.code === '1' ? '1 代表盒码' : '2 代表条码') + '。')
-          : ('二维码数据第 29 位为「' + (String(text).charAt(28) || '—') + '」，既不是 1（盒码）也不是 2（条码）' +
-            (hit && hit.type ? '；按品规库全码命中暂判为' + hit.typeText + '。' : '，无法判定盒 / 条。')))
+          ? ('二维码数据第 29 位为「' + kind.code + '」——1 代表盒烟、2 代表条烟、3 代表件烟。')
+          : ('二维码数据第 29 位为「' + (String(text).charAt(28) || '—') + '」，不是 1（盒烟）、2（条烟）或 3（件烟）' +
+            (hit && hit.type ? '；按品规库全码命中暂判为' + hit.typeText + '。' : '，无法判定包装分类。')))
     }));
 
     g4.items.push(item({
@@ -223,21 +238,9 @@
       status: hit && hit.name ? 'ok' : 'na',
       desc: hit ? (hit.via === 'spec5'
         ? ('规格代码 ' + (hit.spec || '—') + '，对应盒码 ' + (hit.box || '—') + ' / 条码 ' + (hit.bar || '—') + '。')
-        : ('对应' + hit.typeText + ' ' + hit.code + (hit.paired ? '，配对' + hit.pairedTypeText + ' ' + hit.paired : ''))) : ''
+        : ('对应' + hit.typeText + ' ' + hit.code + (hit.paired ? '（' + hit.pairedTypeText + ' ' + hit.paired + '）' : ''))) : ''
     }));
 
-    var pairOk = null;
-    if (hit && hit.paired) {
-      var dg = String(text).replace(/[^0-9]/g, '');
-      // 只有明文中确实出现配对码时才判定；盒码二维码通常不含条码，此时不适用
-      if (dg.indexOf(hit.paired) >= 0) pairOk = true;
-    }
-    g4.items.push(item({
-      key: 'd_pair', name: '盒条配对一致性', std: '—',
-      value: pairOk === null ? null : '一致',
-      dev: null, status: pairOk === null ? 'na' : 'ok', naText: '不适用',
-      desc: pairOk === null ? '二维码内容未包含配对码（盒码二维码通常只承载盒码），此项不适用。' : '明文中同时出现盒码与条码且与品规库一致。'
-    }));
     groups.push(g4);
 
     /* ---- 统计与结论 ---- */
@@ -297,11 +300,11 @@
     if (kind) {
       lines.push('二维码数据第 29 位为「' + kind.code + '」，判定为' + kind.text + '。');
     } else if (counts.total) {
-      lines.push('二维码数据第 29 位不是 1 或 2，盒 / 条归属无法判定，需人工确认。');
+      lines.push('二维码数据第 29 位不是 1、2 或 3，包装分类无法判定，需人工确认。');
     }
 
     if (hit) {
-      lines.push('二维码内容命中品规库：' + hit.typeText + ' ' + (hit.code || '—') + (hit.name ? '，品规 ' + hit.name : '') +
+      lines.push('二维码内容命中品规库：' + (hit.name ? '品规 ' + hit.name : '已匹配到对应记录') +
         (hit.spec ? '，规格代码 ' + hit.spec : '') + '。');
     } else if (counts.total) {
       lines.push('未能从二维码内容匹配品规库，品规名称需人工核对。');

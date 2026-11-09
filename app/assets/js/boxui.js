@@ -429,7 +429,7 @@
               '<span class="seg-pos">' + row.from + '–' + row.to + '</span>' +
               '<span class="seg-val mono">' + esc(row.value || '—') + '</span></div>';
           }).join('') + '</div>' +
-          '<div class="note-line">分段依据行业规定的 59 位编码结构；属性码与流水码的位段边界以行业下发的编码规则为准。</div>';
+          '<div class="note-line">第 29 位为包装分类（1 盒烟 / 2 条烟 / 3 件烟），第 30 位为经营类型（0 国内内销 / 1 国内出口 / 2 国外进口 / 3 国外来牌内销 / 4 国外来牌出口），第 31–35 位为规格代码，最后 24 位为流水码。</div>';
       }
     } else {
       html += '<div class="note-line">未能识读二维码：可能为图像模糊、对比度不足，或画面内不存在二维码。</div>';
@@ -576,9 +576,9 @@
     var mk = window.qrcode;
     if (typeof mk !== 'function') return null;
 
-    // 59 位：地址 15 + '/' + 前缀 9 + '/' + 实体分类 2 + 属性码 13 + 流水码 18
-    // 属性码首位即第 29 位，1 = 盒码；版本 3 / M 级走字母数字模式（容量 61 字符）
-    var payload = 'YZWM.TOBACCO.CN' + '/' + '690102801' + '/' + '01' + '1900000000017' + '000000000000000001';
+    // 59 位：地址 15 + '/' + 前缀 9 + '/' + 实体分类 2 + 包装分类 1 + 经营类型 1 + 规格代码 5 + 流水码 24
+    // 第 29 位 1 = 盒烟，第 30 位 0 = 国内内销；版本 3 / M 级走字母数字模式（容量 61 字符）
+    var payload = 'YZWM.TOBACCO.CN' + '/' + '690102801' + '/' + '01' + '1000000000017' + '000000000000000001';
     var PX = 40;                       // 40 px/mm
     var cv = document.createElement('canvas');
     cv.width = 34 * PX; cv.height = 28 * PX;
