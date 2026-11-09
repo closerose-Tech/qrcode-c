@@ -75,7 +75,7 @@ console.log('\n=== 用例 1：标准盒码，属性码首位为 1 ===');
   ok(/第 29 位为「1」/.test(get('d_type').desc), '说明文字点明第 29 位的取值', get('d_type').desc);
   ok(r.kind && r.kind.type === 'box', '结果对象带 kind=box');
   ok(get('d_name').value === '示例·硬盒（演示）', '带出品规名称', get('d_name').value);
-  ok(get('d_name').desc.indexOf('1900000000017') >= 0 && get('d_name').desc.indexOf('290000000024') >= 0,
+  ok(get('d_name').desc.indexOf('1900000000017') >= 0 && get('d_name').desc.indexOf('2900000000024') >= 0,
     '说明里同时给出盒码与条码', get('d_name').desc);
   ok(r.status === 'ok', '总体结论为符合', r.status);
   ok(!!r.verdict.headline && /符合/.test(r.verdict.headline), '结论文案含“符合”');
@@ -139,11 +139,11 @@ console.log('\n=== 用例 7：符号质量偏低 ===');
 
 console.log('\n=== 用例 8：规格代码第 8–12 位匹配 ===');
 {
-  // 表：盒码 13 / 品规名称 / 条码 12 / 规格代码 13
+  // 表：盒码 13 / 品规名称 / 条码 13 / 规格代码 13
   PG.ingest([
     ['盒码', '品规名称', '条码', '规格代码'],
-    ['1080300775105', '中华（硬）', '080300775136', '6901028077510'],
-    ['1080300775204', '芙蓉王（硬）', '080300775204', '6901028077527']
+    ['1080300775105', '中华（硬）', '6901028118194', '6901028077510'],
+    ['1080300775204', '芙蓉王（硬）', '6901028118200', '6901028077527']
   ]);
   const key = '6901028077510'.slice(7, 12);          // 第 8–12 位
   ok(key === '07751', '规格代码第 8–12 位取到 07751');
@@ -154,14 +154,15 @@ console.log('\n=== 用例 8：规格代码第 8–12 位匹配 ===');
   ok(!!hit && hit.name === '中华（硬）', '按二维码第 31–35 位匹配到品规名称', hit && hit.name);
   ok(!!hit && hit.via === 'spec5' && hit.key5 === key, '命中方式标记为规格代码', hit && hit.via);
   ok(!!hit && hit.spec === '6901028077510', '回带 13 位规格代码', hit && hit.spec);
-  ok(!!hit && hit.box === '1080300775105' && hit.bar === '080300775136', '回带对应的盒码与条码', hit && (hit.box + '/' + hit.bar));
+  ok(!!hit && hit.box === '1080300775105' && hit.bar === '6901028118194', '回带对应的盒码与条码', hit && (hit.box + '/' + hit.bar));
 
   // 手动查询 5 位
   const q = PG.query(key);
   ok(!!q && q.name === '中华（硬）', '手动输入 5 位可反查品规');
   // 全码命中
-  const full = PG.match('9'.repeat(20) + '080300775136' + '9'.repeat(20));
-  ok(!!full && full.type === 'bar' && full.name === '中华（硬）', '全码命中判定条码');
+  const full = PG.match('9'.repeat(20) + '6901028118194' + '9'.repeat(20));
+  ok(!!full && full.type === 'bar' && full.name === '中华（硬）', '13 位条码全码命中判定条码');
+  ok(PG.query('6901028118194').name === '中华（硬）', '手动输入 13 位条码可反查品规');
 
   // 恢复演示库，避免影响后续手工验证
   PG.reset();
@@ -171,7 +172,7 @@ console.log('\n=== 用例 9：演示库与判定规则自洽 ===');
 {
   const s = PG.SAMPLE[0];
   ok(String(s[0]).charAt(0) === '1', '演示库盒码首位为 1，与第 29 位规则一致', s[0]);
-  ok(String(s[2]).length === 12, '演示库条码为 12 位', s[2]);
+  ok(String(s[2]).length === 13, '演示库条码为 13 位', s[2]);
   ok(Box.kindFromPayload(TEXT) && Box.kindFromPayload(TEXT).code === '1', 'kindFromPayload 读取第 29 位');
 }
 

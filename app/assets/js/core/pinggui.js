@@ -1,8 +1,8 @@
 /*!
  * QRQ · 盒条品规库
- * 参照《盒条品规对应表》：盒码（13 位） / 品规名称 / 条码（12 位） / 规格代码（13 位，可选）
+ * 参照《盒条品规对应表》：盒码（13 位） / 品规名称 / 条码（13 位） / 规格代码（13 位，可选）
  * 匹配口径：
- *   1) 全码命中：13 位盒码、12 位条码（含 13 位滑动窗口）
+ *   1) 全码命中：13 位盒码、13 位条码（滑动窗口扫描，盒码优先）
  *   2) 规格代码命中：二维码数据第 31–35 位（5 位）＝ 13 位规格代码第 8–12 位
  * 数据只保存在本机（localStorage），不上传、不写入代码仓库。
  */
@@ -21,19 +21,20 @@
   /* 演示用样本：仅用于展示界面，不是真实品规数据
    * 盒码第 1 位刻意取 1，与「二维码数据第 29 位 = 1 判盒码」的规则一致 */
   var SAMPLE = [
-    ['1900000000017', '示例·硬盒（演示）', '290000000024', '6900000000000'],
-    ['1900000000031', '示例·软盒（演示）', '290000000048', '6900000000100'],
-    ['1900000000055', '示例·细支（演示）', '290000000062', '6900000000200'],
-    ['1900000000079', '示例·中支（演示）', '290000000086', '6900000000300'],
-    ['1900000000093', '示例·条盒（演示）', '290000000104', '6900000000400']
+    ['1900000000017', '示例·硬盒（演示）', '2900000000024', '6900000000000'],
+    ['1900000000031', '示例·软盒（演示）', '2900000000048', '6900000000100'],
+    ['1900000000055', '示例·细支（演示）', '2900000000062', '6900000000200'],
+    ['1900000000079', '示例·中支（演示）', '2900000000086', '6900000000300'],
+    ['1900000000093', '示例·条盒（演示）', '2900000000104', '6900000000400']
   ];
 
   var db = {
     rows: [],          // [[box, name, bar, spec]]
     byBox: null,       // Map 13 位
     byBox12: null,     // Map 去前导 0
-    byBar: null,       // Map 12 位
+    byBar: null,       // Map 13 位（兼容历史 12 位）
     bySpec5: null,     // Map 规格代码第 8–12 位 → [{row, src}]
+    barLen: 13,        // 表内条码位数（默认 13）
     loaded: false,
     source: 'sample'
   };
@@ -57,6 +58,16 @@
     db.byBox12 = new Map();
     db.byBar = new Map();
     db.bySpec5 = new Map();
+    var barLens = {};
+    rows.forEach(function (r) {
+      var bl = norm(r[2]).length;
+      if (bl >= 11) barLens[bl] = (barLens[bl] || 0) + 1;
+    });
+    var best = 13, bestN = 0;
+    Object.keys(barLens).forEach(function (k) {
+      if (barLens[k] > bestN || (barLens[k] === bestN && Number(k) === 13)) { best = Number(k); bestN = barLens[k]; }
+    });
+    db.barLen = best;
     rows.forEach(function (r) {
       var box = norm(r[0]), name = String(r[1] || '').trim(), bar = norm(r[2]), spec = norm(r[3]);
       if (box) {
@@ -97,7 +108,7 @@
     }
     var cBox = find(['盒码', '盒码(13)', '小盒码']);
     var cName = find(['品规名称', '品规', '名称', '牌号']);
-    var cBar = find(['条码', '条码(12)', '条盒码']);
+    var cBar = find(['条码', '条码(13)', '条盒码']);
     // 规格代码：优先“含规格且含代码/编码/码号”的列，避免误取“品规名称”
     var cSpec = -1;
     for (var i = 0; i < head.length; i++) {
@@ -109,7 +120,7 @@
     }
     if (cSpec < 0) cSpec = find(['规格代码', '规格码', '规格编号']);
     if (cBox < 0 && cBar < 0) {
-      // 无表头：按 13 位 / 名称 / 12 位 / 13 位的位置猜
+      // 无表头：按 13 位 / 名称 / 13 位 / 13 位的位置猜
       return { box: 0, name: 1, bar: 2, spec: 3, hasHead: false };
     }
     return { box: cBox, name: cName, bar: cBar, spec: cSpec, hasHead: true };
@@ -160,7 +171,7 @@
     db.source = 'sample';
   }
 
-  /* 在任意文本里找盒码 / 条码：优先 13 位盒码，其次 12 位条码 */
+  /* 在任意文本里找盒码 / 条码：同为 13 位，滑动窗口内盒码优先 */
   function match(text) {
     restore();
     var d = digits(text);
@@ -182,19 +193,23 @@
 
   function matchCode(d) {
     if (db.byBox.has(d)) return hit(db.byBox.get(d), 'box');
+    if (db.byBar.has(d)) return hit(db.byBar.get(d), 'bar');
     if (d.length === 13 && db.byBox12.has(d.replace(/^0+/, ''))) return hit(db.byBox12.get(d.replace(/^0+/, '')), 'box');
 
-    // 13 位滑动窗口
+    // 13 位滑动窗口：盒码优先，其次条码
     for (var i = 0; i + 13 <= d.length; i++) {
       var w13 = d.slice(i, i + 13);
       if (db.byBox.has(w13)) return hit(db.byBox.get(w13), 'box');
       var t = w13.replace(/^0+/, '');
       if (t.length >= 12 && db.byBox12.has(t)) return hit(db.byBox12.get(t), 'box');
+      if (db.byBar.has(w13)) return hit(db.byBar.get(w13), 'bar');
     }
-    // 12 位滑动窗口
-    for (var j = 0; j + 12 <= d.length; j++) {
-      var w12 = d.slice(j, j + 12);
-      if (db.byBar.has(w12)) return hit(db.byBar.get(w12), 'bar');
+    // 历史 12 位条码表格：按 12 位窗口兜底
+    if (db.barLen === 12) {
+      for (var j = 0; j + 12 <= d.length; j++) {
+        var w12 = d.slice(j, j + 12);
+        if (db.byBar.has(w12)) return hit(db.byBar.get(w12), 'bar');
+      }
     }
     return null;
   }

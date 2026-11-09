@@ -354,16 +354,12 @@
         '<span class="spec-name">' + esc(hit && hit.name ? hit.name : '未在品规对应表中找到该码') + '</span>' +
       '</div>' +
       '<div class="seg-table">' +
-        '<div class="seg-row"><span class="seg-name">盒码（13 位）</span>' +
-          '<span class="seg-val mono">' + esc(hit && hit.box ? hit.box : '—') + '</span></div>' +
-        '<div class="seg-row"><span class="seg-name">条码（12 位）</span>' +
-          '<span class="seg-val mono">' + esc(hit && hit.bar ? hit.bar : '—') + '</span></div>' +
         '<div class="seg-row"><span class="seg-name">规格代码（13 位）</span>' +
           '<span class="seg-val mono">' + esc(hit && hit.spec ? hit.spec : '—') + '</span></div>' +
       '</div>' +
       (hit
         ? ''
-        : '<div class="note-line">在下方「品规对应表」导入正式表格后，可显示对应的盒码、条码与规格代码；也可手动输入盒码、条码或规格后 5 位查询。</div>') +
+        : '<div class="note-line">在下方「品规对应表」导入正式表格后，可显示对应品规的规格代码；也可手动输入盒码、条码或规格后 5 位查询。</div>') +
     '</div>';
 
     /* 叠加预览 */
@@ -504,10 +500,7 @@
     var lines = ['盒条二维码合规测评报告', '标准：GB/T 33993-2017',
       '码属：' + (r.kind ? r.kind.text : '无法判定') + (r.kind ? '（二维码数据第 29 位 = ' + r.kind.code + '）' : '')];
     if (r.hit) {
-      lines.push('品规：' + r.hit.name +
-        (r.hit.box ? '，盒码 ' + r.hit.box : '') +
-        (r.hit.bar ? '，条码 ' + r.hit.bar : '') +
-        (r.hit.spec ? '，规格代码 ' + r.hit.spec : ''));
+      lines.push('品规：' + r.hit.name + (r.hit.spec ? '，规格代码 ' + r.hit.spec : ''));
     }
     lines.push('结论：' + badgeLabel(r.status) +
       '（符合 ' + r.counts.ok + ' / 临界 ' + r.counts.warn + ' / 超差 ' + r.counts.fail + '）');
@@ -571,9 +564,7 @@
     if (!hit) { box.hidden = true; box.innerHTML = ''; return; }
     box.hidden = false;
     var cls = hit.type === 'box' ? 'box' : (hit.type === 'bar' ? 'bar' : 'spec');
-    var line = hit.code
-      ? ('盒码 ' + esc(hit.code) + (hit.paired ? ' · 配对' + esc(hit.pairedTypeText) + ' ' + esc(hit.paired) : ''))
-      : ('规格代码 ' + esc(hit.spec || '—') + ' · 第 8–12 位 ' + esc(hit.key5 || '—'));
+    var line = '规格代码 ' + esc(hit.spec || '—') + (hit.key5 ? ' · 第 8–12 位 ' + esc(hit.key5) : '');
     box.innerHTML = '<div class="spec-main small">' +
       '<span class="spec-type ' + cls + '">' + esc(hit.typeText) + '</span>' +
       '<span class="spec-name">' + esc(hit.name || '（无名称）') + '</span></div>' +
